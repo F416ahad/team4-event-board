@@ -1,8 +1,14 @@
-export type rsvpStatus = "going" | "waitlisted" | "cancelled"
+export type RSVPStatus = "going" | "waitlisted" | "cancelled"
 
 // rsvp object (single user's response)
-export type rsvp = {
+export type RSVP = {
     userId: string;
-    status: rsvpStatus;
+    status: RSVPStatus;
 }
 
+// event object
+export type Event = {
+    id: string;
+    title: string;
+    rsvps: RSVP[] // store user's responses in array
+}
