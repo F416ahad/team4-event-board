@@ -73,6 +73,36 @@ export class RsvpService {
         return Ok(undefined);
       }
 
-      
+      // check if user already has rsvp and toggle status
+      let newStatus: RSVPStatus;
+
+        if(existing.status === "going") 
+        {
+            newStatus = "cancelled";
+        } 
+        else 
+        {
+            newStatus = "going";
+        }
+
+      // update rsvp in repo
+      const updateResult = await this.repo.addRSVP(
+        eventId,
+        userId,
+        newStatus
+      );
+
+      if(!updateResult.ok) 
+      {
+        return Err(updateResult.value); // handle update failure
+      }
+
+      return Ok(undefined);
+
+    } 
+    catch 
+    {
+      return Err(new Error("Failed to toggle RSVP")); // catch unexpected errors
+    }
   }
 }
