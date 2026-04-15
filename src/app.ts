@@ -272,7 +272,23 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // Show single event detail with rsvp button
+    this.app.get(
+      "/events/:eventId",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store from request
+        const browserSession = recordPageView(store); // record page view for session tracking
+        const user = getAuthenticatedUser(store); // get current authenticated user
+        const eventId = req.params.eventId; // get eventId from URL
+
+        await this.rsvpController.showEvent(res, eventId, browserSession, user?.userId); // get and return event details
+      }),
+    );
+
     
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
