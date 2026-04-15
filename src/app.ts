@@ -17,6 +17,7 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
+import { IRsvpController } from "./rsvp/RsvpController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -36,6 +37,8 @@ class ExpressApp implements IApp {
   constructor(
     private readonly authController: IAuthController,
     private readonly logger: ILoggingService,
+
+    private readonly rsvpController: IRsvpController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -253,6 +256,23 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // ── RSVP routes ───────────────────────────────────────────────────
+
+    // list all events (authenticated users)
+    this.app.get(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store from request
+        const browserSession = recordPageView(store); // record page view for session tracking
+        const user = getAuthenticatedUser(store); // get current authenticated user
+
+        await this.rsvpController.showEvents(res, browserSession, user?.userId); // get and return events
+      }),
+    );
+
+    
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -273,6 +293,7 @@ class ExpressApp implements IApp {
 export function CreateApp(
   authController: IAuthController,
   logger: ILoggingService,
+  rsvpController: IRsvpController,
 ): IApp {
-  return new ExpressApp(authController, logger);
+  return new ExpressApp(authController, logger, rsvpController);
 }
