@@ -5,12 +5,10 @@ import type { IAppBrowserSession } from "../session/AppSession";
 
 // Controller interface for rsvp
 export interface IRsvpController {
-  toggleRSVP(
-    res: Response,
-    eventId: string,
-    userId: string,
-    session: IAppBrowserSession
-  ): Promise<void>;
+  toggleRSVP(res: Response, eventId: string, userId: string, session: IAppBrowserSession): Promise<void>;
+  showEvents(res: Response, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
+  showEvent(res: Response, eventId: string, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
+  createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession): Promise<void>;
 }
 
 class RsvpController implements IRsvpController {
@@ -65,6 +63,83 @@ class RsvpController implements IRsvpController {
       success: true,
     });
   }
+
+   // show all events
+   async showEvents(res: Response, session: IAppBrowserSession, currentUserId?: string): Promise<void> {
+    const result = await this.service.listEvents();
+    if(!result.ok) 
+    {
+      this.logger.error(`Failed to list events: ${result.value.message}`);
+      res.status(500).render("events/index", {
+        session,
+        events: [],
+        error: "Unable to load events",
+      });
+      return;
+    }
+    res.render("events/index", {
+      session,
+      events: result.value,
+      currentUserId,
+      error: null,
+    });
+  }
+
+    // show a single event with user's rsvp status
+   async showEvent(res: Response, eventId: string, session: IAppBrowserSession, currentUserId?: string): Promise<void> {
+    const result = await this.service.getEvent(eventId);
+
+    if(!result.ok || !result.value) 
+    {
+      const errorMsg = result.ok === false ? result.value.message : "Event not found";
+      this.logger.warn(`Event not found: ${eventId}`);
+      res.status(404).render("events/show", {
+        session,
+        event: null,
+        userRsvp: null,
+        error: errorMsg,
+      });
+      return;
+    }
+
+    const event = result.value;
+    const rsvpResult = await this.service.getUserRsvp(eventId, currentUserId);
+    const userRsvp = rsvpResult.ok ? rsvpResult.value : null;
+    res.render("events/show", {
+      session,
+      event,
+      userRsvp,
+      error: null,
+    });
+  }
+    
+    // create an event (admin/staff)
+   async createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession): Promise<void> {
+    if (!title) {
+      res.status(400).render("events/new", {
+        session,
+        error: "Event title is required",
+        event: null,
+      });
+      return;
+    }
+
+    const result = await this.service.createEvent(title, capacity);
+    if(!result.ok) 
+    {
+      this.logger.error(`Failed to create event: ${result.value.message}`);
+      res.status(400).render("events/new", {
+        session,
+        error: result.value.message,
+        event: null,
+      });
+      return;
+    }
+    this.logger.info(`Event created: ${title}`);
+    res.redirect("/events");
+  }
+
+
 }
 
 // create factory function to create controller instance
