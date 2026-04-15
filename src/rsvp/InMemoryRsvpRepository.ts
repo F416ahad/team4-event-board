@@ -5,7 +5,7 @@ import type { RSVPRepository } from "./RsvpRepository.ts";
 class InMemoryRsvpRepository implements RSVPRepository {
     constructor(private readonly Events: Event[]) {} // Initializes the repository with an in-memory events array
 
-    async createEvent(title: string): Promise<Result<Event, Error>> {
+  async createEvent(title: string): Promise<Result<Event, Error>> {
     try {
       // creates an event with unqiue id and empty rsvp list
       const event: Event = { id: Date.now().toString(), title, rsvps: [],};
@@ -85,6 +85,21 @@ class InMemoryRsvpRepository implements RSVPRepository {
     }
   }
 
+   async countGoing(eventId: string): Promise<Result<number, Error>> {
+    try {
+      const event = this.Events.find(e => e.id === eventId); // find event by id
+
+      if(!event) return Ok(0); // if event doesn't exist, return 0 (no rsvps)
+
+      const count = event.rsvps.filter(r => r.status === "going").length; // filter rsvps to only those going and count how many
+      
+      return Ok(count); // return count as result
+
+    } 
+    catch {
+      return Err(new Error("Unable to count RSVPs")); // unexpected errors
+    }
+  }
 
 }
 
