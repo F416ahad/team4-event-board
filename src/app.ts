@@ -287,6 +287,25 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // create new event (admin or staff only)
+    this.app.post(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can create events.")) 
+        {
+          return; // make sure user has required role
+        }
+
+        const title = typeof req.body.title === "string" ? req.body.title.trim() : ""; // validate and trim title
+        const capacity = req.body.capacity ? parseInt(req.body.capacity, 10) : undefined; // get capacity if provided
+
+        const store = sessionStore(req); // get session store
+        const browserSession = touchAppSession(store); // update session activity
+
+        await this.rsvpController.createEvent(res, title, capacity, browserSession); // create event
+      }),
+    );
+
     
 
     // ── Error handler ────────────────────────────────────────────────
