@@ -306,7 +306,27 @@ class ExpressApp implements IApp {
       }),
     );
 
-    
+    // toggle rsvp 
+    this.app.post(
+      "/events/:eventId/rsvp",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store
+        const user = getAuthenticatedUser(store); // get authenticated user
+
+        if(!user) 
+        {
+          res.status(401).json({ success: false, error: "Unauthorized" }); // Check if user is authenticated
+          return;
+        }
+
+        const eventId = req.params.eventId;  // get eventId from URL
+        const browserSession = touchAppSession(store); // update session activity
+
+        await this.rsvpController.toggleRSVP(res, eventId, user.userId, browserSession); // toggle rsvp status
+      }),
+    );
 
     // ── Error handler ────────────────────────────────────────────────
 
