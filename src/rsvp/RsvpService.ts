@@ -1,6 +1,6 @@
 import { Ok, Err, type Result } from "../lib/result";
 import type { RSVPRepository } from "./RsvpRepository";
-import type { RSVPStatus } from "./Rsvp";
+import type { RSVPStatus, Event, RSVP } from "./Rsvp";
 
 export class RsvpService {
   constructor(private readonly repo: RSVPRepository) {}
@@ -104,5 +104,37 @@ export class RsvpService {
     {
       return Err(new Error("Failed to toggle RSVP")); // catch unexpected errors
     }
+  }
+
+  // list all events
+  async listEvents(): Promise<Result<Event[], Error>> {
+    return await this.repo.getEvents();
+  }
+
+  // get single event by id
+  async getEvent(eventId: string): Promise<Result<Event | null, Error>> {
+    return await this.repo.getEvent(eventId);
+  }
+               
+  // get a user's rsvp for an event
+  async getUserRsvp(eventId: string, userId?: string): Promise<Result<RSVP | null, Error>> {
+    if(!userId) return Ok(null);
+    
+    return await this.repo.getRSVP(eventId, userId);
+  }
+
+  async createEvent(title: string, capacity?: number): Promise<Result<Event, Error>> {
+    const result = await this.repo.createEvent(title);
+
+    if(!result.ok) return result;
+
+    const event = result.value;
+
+    if(capacity !== undefined) 
+    {
+      event.capacity = capacity;
+    }
+
+    return Ok(event);
   }
 }
