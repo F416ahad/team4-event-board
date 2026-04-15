@@ -1,5 +1,5 @@
 import { Err, Ok, type Result } from "../lib/result";
-import type { Event, RSVPStatus} from "./Rsvp.ts" // import Rsvp.ts from current directory
+import type { Event, RSVP, RSVPStatus} from "./Rsvp.ts" // import Rsvp.ts from current directory
 import type { RSVPRepository } from "./RsvpRepository.ts";
 
 class InMemoryRsvpRepository implements RSVPRepository {
@@ -66,8 +66,29 @@ class InMemoryRsvpRepository implements RSVPRepository {
     }
   }
  
+  async getRSVP(
+    eventId: string,
+    userId: string
+  ): Promise<Result<RSVP | null, Error>> {
+    try {
+      const event = this.Events.find(e => e.id === eventId); // find event by id
+
+      if(!event) return Ok(null); // if event doesn't exist, return null
+
+      // find rsvp for given user within event's rsvp list and return if user rsvp'ed or null
+      const rsvp = event.rsvps.find(r => r.userId === userId) ?? null; 
+
+      return Ok(rsvp); // return rsvp or null
+    } 
+    catch {
+      return Err(new Error("Unable to get RSVP")); // unexpected errors
+    }
+  }
+
+
 }
 
-export function createInMemoryRsvpRepository(): RSVPRepository {
-  return new InMemoryRsvpRepository([]);
+
+export function createInMemoryRsvpRepository(): RSVPRepository { 
+  return new InMemoryRsvpRepository([]); // initializes repository with empty list
 }
