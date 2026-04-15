@@ -39,6 +39,32 @@ class InMemoryRsvpRepository implements RSVPRepository {
     }
   }
 
+  async addRSVP(
+    eventId: string,
+    userId: string,
+    status: RSVPStatus
+  ): Promise<Result<void, Error>> {
+    try {
+      const event = this.Events.find(e => e.id === eventId); // find event by id
+      if(!event) return Err(new Error("Event not found")); // if no event exists, return error result
+
+      const existing = event.rsvps.find(r => r.userId === userId); // check if user already rsvp for event
+
+      if(existing) 
+      {
+        existing.status = status; // if rsvp exists, update status
+      } 
+      else 
+      {
+        event.rsvps.push({ userId, status }); // create new rsvp entry
+      }
+
+      return Ok(undefined); // return success (void)
+    } 
+    catch {
+      return Err(new Error("Unable to add RSVP")); // catch any unexpected errors
+    }
+  }
  
 }
 
