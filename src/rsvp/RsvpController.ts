@@ -67,3 +67,10 @@ class RsvpController implements IRsvpController {
   }
 }
 
+// create factory function to create controller instance
+export function CreateRsvpController(
+  service: RsvpService,
+  logger: ILoggingService
+): IRsvpController {
+  return new RsvpController(service, logger); // return controller
+}
