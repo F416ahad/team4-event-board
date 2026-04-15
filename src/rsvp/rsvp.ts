@@ -11,4 +11,5 @@ export interface Event {
     id: string;
     title: string;
     rsvps: RSVP[] // store user's responses in array
+    capacity?: number; // max number of people allowed
 }
