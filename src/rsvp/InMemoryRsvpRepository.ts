@@ -1,0 +1,27 @@
+import { Err, Ok, type Result } from "../lib/result";
+import type { Event, RSVPStatus} from "./Rsvp.ts" // import Rsvp.ts from current directory
+import type { RSVPRepository } from "./RsvpRepository.ts";
+
+class InMemoryRsvpRepository implements RSVPRepository {
+    constructor(private readonly Events: Event[]) {} // Initializes the repository with an in-memory events array
+
+    async createEvent(title: string): Promise<Result<Event, Error>> {
+    try {
+      // creates an event with unqiue id and empty rsvp list
+      const event: Event = { id: Date.now().toString(), title, rsvps: [],};
+
+      this.Events.push(event); // Stores the new event in memory
+
+      return Ok(event); // returns created event in a result
+    } 
+    catch { 
+      return Err(new Error("Unable to create event")); // returns an error message if creation fails
+    }
+  }
+
+ 
+}
+
+export function createInMemoryRsvpRepository(): RSVPRepository {
+  return new InMemoryRsvpRepository([]);
+}
