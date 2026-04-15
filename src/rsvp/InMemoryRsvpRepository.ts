@@ -19,6 +19,18 @@ class InMemoryRsvpRepository implements RSVPRepository {
     }
   }
 
+  async getEvent(id: string): Promise<Result<Event | null, Error>> {
+    try {
+      // search in-memory array for matching event id
+      const event = this.Events.find(e => e.id === id) ?? null; // find event with given id, if can't, return null 
+      // wrap and return result in result type (event or null)
+      return Ok(event);
+    } 
+    catch { 
+      return Err(new Error("Unable to get event")); // return error message
+    }
+  }
+
  
 }
 
