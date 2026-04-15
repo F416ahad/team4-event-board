@@ -33,6 +33,46 @@ export class RsvpService {
         return Err(rsvpResult.value); // handle repo error
       }
 
+      const existing = rsvpResult.value;
+
+      // if user has no rsvp yet, then create one
+      if(!existing) 
+      {
+        const countResult = await this.repo.countGoing(eventId);
+
+        if(!countResult.ok) 
+        {
+          return Err(countResult.value); // handle count failure
+        }
+
+
+        let status: RSVPStatus; // create mutable variable
+
+        // check rsvp status based on event capacity
+        if(countResult.value >= (event.capacity ?? Infinity))  // if event capacity is null, use infinity
+        {
+            status = "waitlisted";
+        } 
+        else 
+        {
+            status = "going";
+        }
+
+        // add a new rsvp
+        const addResult = await this.repo.addRSVP(
+          eventId,
+          userId,
+          status
+        );
+
+        if(!addResult.ok) 
+        {
+          return Err(addResult.value); // handle repo error
+        }
+
+        return Ok(undefined);
+      }
+
       
   }
 }
