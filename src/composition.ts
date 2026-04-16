@@ -7,19 +7,9 @@ import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
-import { CreateRsvpController } from "./rsvp/waitlistController";
-import { CreateRsvpService } from "./rsvp/waitlistService";
-
-// rsvp imports
-import { RsvpService } from "./rsvp/RsvpService";
-import { CreateRsvpController } from "./rsvp/RsvpController";
-import { createInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
-
-// comment imports
-import { CommentService } from "./comment/CommentService";
-import { CreateCommentController } from "./comment/CommentController";
-import { createInMemoryCommentRepository } from "./comment/InMemoryCommentRepository";
-
+import { CreateEventService, type IEventService } from "./event_dash/EventService";
+import { CreateEventController } from "./event_dash/EventController";
+import { CreateInMemoryEventRepository } from "./event_dash/InMemoryEventRepository";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
@@ -33,5 +23,10 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const rsvpService = CreateRsvpService(prismaClient);
   const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
-  return CreateApp(authController, rsvpController, resolvedLogger);
+  // Event management wiring
+  const events = CreateInMemoryEventRepository();
+  const eventService = CreateEventService(events);
+  const eventController = CreateEventController(eventService);
+
+  return CreateApp(authController, resolvedLogger, eventController);
 }

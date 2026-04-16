@@ -18,11 +18,7 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
-import { IRsvpController } from "./rsvp/waitlistController";
-
-// rsvp and comment controller imports
-import { IRsvpController } from "./rsvp/RsvpController";
-import { ICommentController } from "./comment/CommentController";
+import { IEventController } from "./event_dash/EventController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -43,8 +39,7 @@ class ExpressApp implements IApp {
     private readonly authController: IAuthController,
     private readonly rsvpController: IRsvpController,
     private readonly logger: ILoggingService,
-    private readonly rsvpController: IRsvpController,   // rsvpController constructor
-    private readonly commentController: ICommentController, // commentController constructor
+    private readonly eventController: IEventController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -265,7 +260,18 @@ class ExpressApp implements IApp {
 
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null });
+        const user = getAuthenticatedUser(sessionStore(req));
+        let dashboardData = null;
+        if (user && (user.role === "admin" || user.role === "staff")) {
+          const result = await this.eventController.getDashboardData(
+            user.userId,
+            user.role
+          );
+          if (result.ok){
+            dashboardData = result;
+          }
+        }
+        res.render("home", { session: browserSession, pageError: null, dashboardData });
       }),
     );
 
@@ -437,11 +443,7 @@ class ExpressApp implements IApp {
 }
 
 export function CreateApp(
-  authController: IAuthController,
-  rsvpController: IRsvpController,
-  logger: ILoggingService,
-  rsvpController: IRsvpController,
-  commentController: ICommentController,
+authController: IAuthController, logger: ILoggingService, eventController: IEventController,
 ): IApp {
-  return new ExpressApp(authController, logger, rsvpController, commentController);
+  return new ExpressApp(authController, logger, eventController);
 }
