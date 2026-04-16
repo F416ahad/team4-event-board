@@ -43,4 +43,29 @@ export class CommentService {
         return await this.commentRepo.createComment(commentData);
     }
 
+    async getCommentsWithPermissions(
+        eventId: string,
+        currentUserId: string | undefined,
+        eventOwnerId: string | undefined,
+    ): Promise<Result<CommentWithPermissions[], Error>> {
+
+        const result = await this.commentRepo.getCommentsByEvent(eventId);
+
+        if(!result.ok) return Err(result.value);
+
+        // creates a new object with the same fields as comment, with the addition of the canDelete field
+        const commentsWithPerms = result.value.map(comment => ({
+        id: comment.id,
+        eventId: comment.eventId,
+        userId: comment.userId,
+        displayName: comment.displayName,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        canDelete: this.canDeleteComment(comment, currentUserId, eventOwnerId),
+        }));
+        
+        return Ok(commentsWithPerms);
+    }
+
+   
 }
