@@ -67,5 +67,35 @@ export class CommentService {
         return Ok(commentsWithPerms);
     }
 
-   
+    async deleteComment(
+        commentId: string,
+        currentUserId: string | undefined,
+        currentUserRole: string | undefined,
+        eventOwnerId: string | undefined,
+    ): Promise<Result<void, Error>> {
+
+        const commentResult = await this.commentRepo.findCommentById(commentId);
+
+        if(!commentResult.ok) return Err(commentResult.value);
+
+        const comment = commentResult.value;
+
+        if(!comment) return Err(new Error("Comment not found"));
+
+        const canDelete = this.canDeleteComment(comment, currentUserId, eventOwnerId, currentUserRole);
+
+        if(!canDelete) 
+        {
+            return Err(new Error("You do not have permission to delete this comment"));
+        }
+
+        const deleteResult = await this.commentRepo.deleteComment(commentId);
+
+        if(!deleteResult.ok) return Err(deleteResult.value);
+
+        if(!deleteResult.value) return Err(new Error("Comment already deleted"));
+
+        return Ok(undefined);
+    }
+
 }
