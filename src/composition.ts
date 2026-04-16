@@ -8,9 +8,16 @@ import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
 
+// rsvp imports
 import { RsvpService } from "./rsvp/RsvpService";
 import { CreateRsvpController } from "./rsvp/RsvpController";
 import { createInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
+
+// comment imports
+import { CommentService } from "./comment/CommentService";
+import { CreateCommentController } from "./comment/CommentController";
+import { createInMemoryCommentRepository } from "./comment/InMemoryCommentRepository";
+
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
@@ -22,10 +29,18 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-   // RSVP wiring
-  const rsvpRepo = createInMemoryRsvpRepository(); // initialize rsvp in-memory repo
-  const rsvpService = new RsvpService(rsvpRepo); // create rsvp service using repository
-  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger); // create rsvp controller with service and logger
-  
-  return CreateApp(authController, resolvedLogger, rsvpController); // combine controllers and logger into app instance
+    // rsvp wiring
+    const rsvpRepo = createInMemoryRsvpRepository();
+    const rsvpService = new RsvpService(rsvpRepo);
+    const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
+
+    // comment wiring (depends on rsvpService for event lookup)
+    const commentRepo = createInMemoryCommentRepository();
+    const commentService = new CommentService(
+        commentRepo,
+        async (eventId: string) => await rsvpService.getEvent(eventId)
+    );
+    const commentController = CreateCommentController(commentService, resolvedLogger);
+
+  return CreateApp(authController, resolvedLogger, rsvpController, commentController);
 }
