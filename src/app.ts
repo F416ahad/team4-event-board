@@ -133,6 +133,13 @@ class ExpressApp implements IApp {
     return false;
   }
 
+  // helper function to get string parameter from req.params
+   private getParam(param: string | string[] | undefined): string {
+      if(typeof param === "string") return param;
+      if(Array.isArray(param) && param.length > 0) return param[0];
+      return "";
+  }
+
   private registerRoutes(): void {
     // ── Public routes ────────────────────────────────────────────────
 
@@ -337,7 +344,41 @@ class ExpressApp implements IApp {
         await this.rsvpController.toggleRSVP(res, eventId, user.userId, browserSession); // toggle rsvp status
       }),
     );
+    
     // ── Comment routes ───────────────────────────────────────────────
+
+    // post a new comment
+    this.app.post(
+      "/events/:eventId/comments",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return;
+
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        const eventId = req.params.eventId;
+        const content = typeof req.body.content === "string" ? req.body.content : "";
+        const browserSession = touchAppSession(store);
+        const ownerIdResult = await this.rsvpController.getEventOwnerId(eventId);
+        const eventOwnerId = ownerIdResult.ok ? ownerIdResult.value : null;
+        await this.commentController.postComment(
+          res,
+          eventId,
+          user.userId,
+          user.displayName,
+          content,
+          browserSession,
+          eventOwnerId,
+        );
+      }),
+    );
+
 
     // ── Error handler ────────────────────────────────────────────────
 
