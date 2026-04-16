@@ -2,6 +2,7 @@ import type { Response } from "express";
 import type { RsvpService } from "./RsvpService";
 import type { ILoggingService } from "../service/LoggingService";
 import type { IAppBrowserSession } from "../session/AppSession";
+import { Result } from "../lib/result";
 
 // Controller interface for rsvp
 export interface IRsvpController {
@@ -9,6 +10,7 @@ export interface IRsvpController {
   showEvents(res: Response, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
   showEvent(res: Response, eventId: string, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
   createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession): Promise<void>;
+  getEventOwnerId(eventId: string): Promise<Result<string | null, Error>>;
 }
 
 class RsvpController implements IRsvpController {
@@ -46,10 +48,8 @@ class RsvpController implements IRsvpController {
         `RSVP toggle failed: ${result.value.message}` // log warning for failure
       );
 
-      res.status(status).json({
-        success: false, // indicates failure
-        error: result.value.message, // return error message to client
-      });
+      // send HTTP error response with status code and display error message inside an HTML div
+      res.status(status).send(`<div class="error">${result.value.message}</div>`); 
 
       return; // stop running if get error response
     }
