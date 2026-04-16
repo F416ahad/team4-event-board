@@ -25,6 +25,20 @@ export class RsvpService {
 
       if(!event) return Err(new Error("Event not found")); // check if event exists
 
+      // reject if event is cancelled
+      if(event.status === "cancelled") 
+      {
+        return Err(new Error("Cannot RSVP to a cancelled event"));
+    
+      }
+
+      // reject if event date is in the past
+      if(new Date(event.date) < new Date()) 
+      {
+        return Err(new Error("Cannot RSVP to a past event"));
+      }
+
+
       // Get rsvp for user
       const rsvpResult = await this.repo.getRSVP(eventId, userId);
 
@@ -123,8 +137,14 @@ export class RsvpService {
     return await this.repo.getRSVP(eventId, userId);
   }
 
+<<<<<<< task/event-comments-structure
+  // create event (needs owner id)
+  async createEvent(title: string, createdByUserId: string, capacity?: number,): Promise<Result<Event, Error>> {
+    const result = await this.repo.createEvent(title, createdByUserId);
+=======
   async createEvent(title: string, capacity?: number): Promise<Result<Event, Error>> {
     const result = await this.repo.createEvent(title);
+>>>>>>> dev
 
     if(!result.ok) return result;
 
@@ -137,4 +157,33 @@ export class RsvpService {
 
     return Ok(event);
   }
+<<<<<<< task/event-comments-structure
+
+  // count how many "going" for an event
+  async countGoing(eventId: string): Promise<Result<number, Error>> 
+  {
+    return await this.repo.countGoing(eventId);
+  }
+
+  // get event owner ID
+  async getEventOwnerId(eventId: string): Promise<Result<string | null, Error>> {
+        const result = await this.repo.getEvent(eventId);
+
+        if(!result.ok) return Err(result.value);
+
+        let ownerId: string | null;
+
+        if(result.value && result.value.createdByUserId)
+        {
+            ownerId = result.value.createdByUserId;
+        } 
+        else 
+        {
+            ownerId = null;
+        }
+
+        return Ok(ownerId);
+    }
+=======
+>>>>>>> dev
 }
