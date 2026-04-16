@@ -75,4 +75,31 @@ class CommentController implements ICommentController {
 
         await this.renderCommentList(res, eventId, currentUserId, eventOwnerId ?? undefined, session);
     }
+
+    private async renderCommentList(
+        res: Response,
+        eventId: string,
+        currentUserId: string | undefined,
+        eventOwnerId: string | undefined,
+        session: IAppBrowserSession,
+    ): Promise<void> {
+
+        const result = await this.service.getCommentsWithPermissions(eventId, currentUserId, eventOwnerId);
+        
+        if(!result.ok)
+        {
+            res.status(500).send('<div class="error">Unable to load comments</div>');
+            return;
+        }
+        
+        res.render("partials/comment-list", {
+            comments: result.value,
+            session,
+            eventId,
+            currentUserId,
+            eventOwnerId,
+            layout: false,
+        });
+    }
 }
+
