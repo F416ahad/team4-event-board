@@ -338,7 +338,7 @@ class ExpressApp implements IApp {
           return;
         }
 
-        const eventId = req.params.eventId;  // get eventId from URL
+        const eventId = this.getParam(req.params.eventId); // get eventId from URL
         const browserSession = touchAppSession(store); // update session activity
 
         await this.rsvpController.toggleRSVP(res, eventId, user.userId, browserSession); // toggle rsvp status
@@ -362,7 +362,7 @@ class ExpressApp implements IApp {
           return;
         }
 
-        const eventId = req.params.eventId;
+        const eventId = this.getParam(req.params.eventId);
         const content = typeof req.body.content === "string" ? req.body.content : "";
         const browserSession = touchAppSession(store);
         const ownerIdResult = await this.rsvpController.getEventOwnerId(eventId);
