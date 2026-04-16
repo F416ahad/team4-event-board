@@ -1,3 +1,4 @@
+import "dotenv/config";
 import path from "node:path";
 import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
@@ -36,6 +37,7 @@ class ExpressApp implements IApp {
 
   constructor(
     private readonly authController: IAuthController,
+    private readonly rsvpController: IRsvpController,
     private readonly logger: ILoggingService,
     private readonly eventController: IEventController,
   ) {
@@ -127,6 +129,13 @@ class ExpressApp implements IApp {
       layout: false,
     });
     return false;
+  }
+
+  // helper function to get string parameter from req.params
+   private getParam(param: string | string[] | undefined): string {
+      if(typeof param === "string") return param;
+      if(Array.isArray(param) && param.length > 0) return param[0];
+      return "";
   }
 
   private registerRoutes(): void {
@@ -266,27 +275,155 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // ── RSVP routes ───────────────────────────────────────────────────
+
+    // list all events (authenticated users)
     this.app.get(
-      "/dashboard",
+      "/events",
       asyncHandler(async (req, res) => {
-        if (!this.requireRole(req, res, ["admin", "staff"], "Access denied")) {
-      return;
+        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store from request
+        const browserSession = recordPageView(store); // record page view for session tracking
+        const user = getAuthenticatedUser(store); // get current authenticated user
+
+        await this.rsvpController.showEvents(res, browserSession, user?.userId); // get and return events
+      }),
+    );
+
+    // Show single event detail with rsvp button
+    this.app.get(
+      "/events/:eventId",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store from request
+        const browserSession = recordPageView(store); // record page view for session tracking
+        const user = getAuthenticatedUser(store); // get current authenticated user
+        const eventId = this.getParam(req.params.eventId); // get eventId from URL
+ 
+        await this.rsvpController.showEvent(res, eventId, browserSession, user?.userId); // get and return event details
+      }),
+    );
+
+    // create new event (admin or staff only)
+    this.app.post(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can create events.")) 
+        {
+          return; // make sure user has required role
         }
 
-        const store = sessionStore(req);
-        const session = recordPageView(store);
+        const title = typeof req.body.title === "string" ? req.body.title.trim() : ""; // validate and trim title
+        const capacity = req.body.capacity ? parseInt(req.body.capacity, 10) : undefined; // get capacity if provided
+
+        const store = sessionStore(req); // get session store
+        const browserSession = touchAppSession(store); // update session activity
+
+        // get user from session
         const user = getAuthenticatedUser(store);
 
-        if (!user) return;
+        if(!user)
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
 
-      await this.eventController.showDashboard(
-        res,
-        session,
-        user.userId,
-        user.role
+        await this.rsvpController.createEvent(res, title, capacity, browserSession, user.userId); // create event
+      }),
     );
-  }),
-);
+
+    // toggle rsvp 
+    this.app.post(
+      "/events/:eventId/rsvp/cancel",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const eventId = this.getParam(req.params.eventId); // get eventId from URL
+        const browserSession = touchAppSession(store); // update session activity
+
+        await this.rsvpController.toggleRSVP(res, eventId, user.userId, browserSession); // toggle rsvp status
+      }),
+    );
+    
+    // ── Comment routes ───────────────────────────────────────────────
+
+    // post a new comment
+    this.app.post(
+      "/events/:eventId/comments",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return;
+
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        const eventId = this.getParam(req.params.eventId);
+        const content = typeof req.body.content === "string" ? req.body.content : "";
+        const browserSession = touchAppSession(store);
+        const ownerIdResult = await this.rsvpController.getEventOwnerId(eventId);
+        const eventOwnerId = ownerIdResult.ok ? ownerIdResult.value : null;
+        await this.commentController.postComment(
+          res,
+          eventId,
+          user.userId,
+          user.displayName,
+          content,
+          browserSession,
+          eventOwnerId,
+        );
+      }),
+    );
+
+    // delete a comment
+    this.app.delete(
+      "/events/:eventId/comments/:commentId",
+      asyncHandler(async (req, res) => {
+
+        if(!this.requireAuthenticated(req, res)) return;
+
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+       
+        const eventId = this.getParam(req.params.eventId);
+        const commentId = this.getParam(req.params.commentId);
+
+        if(!eventId || !commentId)
+        {
+          res.status(400).send("Invalid IDs");
+          return;
+        }
+        
+        const browserSession = touchAppSession(store);
+        const ownerIdResult = await this.rsvpController.getEventOwnerId(eventId);
+        const eventOwnerId = ownerIdResult.ok ? ownerIdResult.value : null;
+
+        await this.commentController.deleteComment(
+          res,
+          commentId,
+          eventId,
+          user.userId,
+          user.role,
+          eventOwnerId,
+          browserSession,
+        );
+      }),
+    );
 
     // ── Error handler ────────────────────────────────────────────────
 
