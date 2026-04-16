@@ -37,7 +37,7 @@ class RsvpController implements IRsvpController {
 
     const result = await this.rsvpService.cancelRsvpAndPromote(
       eventId,
-      user.email
+      user.userId
     );
 
     if (!result.ok) {
