@@ -38,4 +38,14 @@ class InMemoryRsvpRepository implements RSVPRepository {
         }
     }
 
+    async getEvents(): Promise<Result<Event[], Error>> {
+        try {
+            return Ok([...this.events]);
+        } 
+        catch 
+        {
+            return Err(new Error("Unable to get events"));
+        }
+    }
 }
+    
