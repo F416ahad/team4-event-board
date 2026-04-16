@@ -441,6 +441,8 @@ class ExpressApp implements IApp {
 export function CreateApp(
   authController: IAuthController,
   logger: ILoggingService,
+  rsvpController: IRsvpController,
+  commentController: ICommentController,
 ): IApp {
-  return new ExpressApp(authController, logger);
+  return new ExpressApp(authController, logger, rsvpController, commentController);
 }
