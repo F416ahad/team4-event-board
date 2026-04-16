@@ -5,8 +5,8 @@ const events = new Map();
 events.set("1", {
   id: "1",
   title: "First Test Event",
-  description: "This is a detailed description of the event.",
-  location: "Campus Center",
+  description: "This is a description of the event.",
+  location: "ILC",
   category: "Social",
   status: "published", // change to 'draft' to test service rules later
   capacity: 50,
@@ -23,4 +23,38 @@ events.set("1", {
 export const findEventById = async (id) => {
   const event = events.get(id);
   return event ? { ...event } : null;
+};
+
+/**
+ * In-Memory Event Repository
+ * Contains sample data for testing Category and Date filters.
+ */
+const events = [
+    { 
+        id: 1, 
+        title: 'Database Normalization Workshop', 
+        category: 'Academic', 
+        status: 'published', 
+        startDatetime: '2026-04-18T10:00:00' 
+    },
+    { 
+        id: 2, 
+        title: 'Spring Semester Kickoff', 
+        category: 'Social', 
+        status: 'published', 
+        startDatetime: '2026-04-20T18:00:00' 
+    },
+    { 
+        id: 3, 
+        title: 'Private Faculty Meeting', 
+        category: 'Academic', 
+        status: 'draft', 
+        startDatetime: '2026-04-19T09:00:00' 
+    }
+];
+
+export const findAll = async () => {
+    // Return a copy to ensure the in-memory "database" isn't accidentally 
+    // modified outside this file
+    return [...events];
 };

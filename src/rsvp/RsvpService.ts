@@ -1,6 +1,6 @@
 import { Ok, Err, type Result } from "../lib/result";
 import type { RSVPRepository } from "./RsvpRepository";
-import type { RSVPStatus, Event, RSVP } from "./Rsvp";
+import type { RSVPStatus, Event, RSVP } from "./rsvp.ts";
 
 export class RsvpService {
   constructor(private readonly repo: RSVPRepository) {}

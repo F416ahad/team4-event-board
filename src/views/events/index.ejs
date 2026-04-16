@@ -1,0 +1,43 @@
+<div class="container">
+    <h1>Upcoming Events</h1>
+
+    <form action="/events" method="GET" class="filter-form">
+        <div class="filter-group">
+            <label for="category">Category:</label>
+            <select name="category" id="category">
+                <option value="all">All Categories</option>
+                <option value="Academic" <%= filters.category === 'Academic' ? 'selected' : '' %>>Academic</option>
+                <option value="Social" <%= filters.category === 'Social' ? 'selected' : '' %>>Social</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="timeframe">Timeframe:</label>
+            <select name="timeframe" id="timeframe">
+                <option value="all-upcoming">All Upcoming</option>
+                <option value="this-week" <%= filters.timeframe === 'this-week' ? 'selected' : '' %>>This Week</option>
+                <option value="this-weekend" <%= filters.timeframe === 'this-weekend' ? 'selected' : '' %>>This Weekend</option>
+            </select>
+        </div>
+
+        <button type="submit">Apply Filters</button>
+        <a href="/events" class="clear-filters">Clear All</a>
+    </form>
+
+    <hr>
+
+    <div class="event-list">
+        <% if (events.length > 0) { %>
+            <% events.forEach(event => { %>
+                <div class="event-card">
+                    <h3><%= event.title %></h3>
+                    <p><strong>Category:</strong> <%= event.category %></p>
+                    <p><strong>Date:</strong> <%= new Date(event.startDatetime).toLocaleString() %></p>
+                    <a href="/events/<%= event.id %>">View Details</a>
+                </div>
+            <% }) %>
+        <% } else { %>
+            <p>No published events found matching those filters.</p>
+        <% } %>
+    </div>
+</div>
