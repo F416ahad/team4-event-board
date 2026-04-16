@@ -47,7 +47,7 @@ class InMemoryRsvpRepository implements RSVPRepository {
             return Err(new Error("Unable to get events"));
         }
     }
-
+    
     async addRSVP(
         eventId: string,
         userId: string,
@@ -74,6 +74,22 @@ class InMemoryRsvpRepository implements RSVPRepository {
         catch 
         {
             return Err(new Error("Unable to add RSVP"));
+        }
+    }
+
+    async getRSVP(eventId: string, userId: string): Promise<Result<RSVP | null, Error>> {
+        try {
+            const event = this.events.find(e => e.id === eventId);
+
+            if(!event) return Ok(null);
+
+            const rsvp = event.rsvps.find((r: { userId: string; }) => r.userId === userId) ?? null;
+
+            return Ok(rsvp);
+        } 
+        catch 
+        {
+            return Err(new Error("Unable to get RSVP"));
         }
     }
 
