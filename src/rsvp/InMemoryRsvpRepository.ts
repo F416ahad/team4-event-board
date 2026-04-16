@@ -8,7 +8,7 @@ class InMemoryRsvpRepository implements RSVPRepository {
   async createEvent(title: string, createdByUserId: string): Promise<Result<Event, Error>> {
     try {
       // creates an event with unqiue id and empty rsvp list
-      const event: Event = { id: Date.now().toString(), title, rsvps: [], createdByUserId,};
+      const event: Event = { id: Date.now().toString(), title, rsvps: [], createdByUserId, status: "active", date: new Date().toISOString()};
 
       this.Events.push(event); // Stores the new event in memory
 
