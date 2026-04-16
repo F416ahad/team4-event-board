@@ -17,6 +17,7 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
+import { IEventController } from "./event_dash/EventController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -36,6 +37,7 @@ class ExpressApp implements IApp {
   constructor(
     private readonly authController: IAuthController,
     private readonly logger: ILoggingService,
+    private readonly eventController: IEventController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -249,9 +251,42 @@ class ExpressApp implements IApp {
 
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null });
+        const user = getAuthenticatedUser(sessionStore(req));
+        let dashboardData = null;
+        if (user && (user.role === "admin" || user.role === "staff")) {
+          const result = await this.eventController.getDashboardData(
+            user.userId,
+            user.role
+          );
+          if (result.ok){
+            dashboardData = result;
+          }
+        }
+        res.render("home", { session: browserSession, pageError: null, dashboardData });
       }),
     );
+
+    this.app.get(
+      "/dashboard",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Access denied")) {
+      return;
+        }
+
+        const store = sessionStore(req);
+        const session = recordPageView(store);
+        const user = getAuthenticatedUser(store);
+
+        if (!user) return;
+
+      await this.eventController.showDashboard(
+        res,
+        session,
+        user.userId,
+        user.role
+    );
+  }),
+);
 
     // ── Error handler ────────────────────────────────────────────────
 
@@ -271,8 +306,7 @@ class ExpressApp implements IApp {
 }
 
 export function CreateApp(
-  authController: IAuthController,
-  logger: ILoggingService,
+authController: IAuthController, logger: ILoggingService, eventController: IEventController,
 ): IApp {
-  return new ExpressApp(authController, logger);
+  return new ExpressApp(authController, logger, eventController);
 }
