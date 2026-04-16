@@ -7,6 +7,8 @@ import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
+import { CreateRsvpController } from "./rsvp/waitlistController";
+import { CreateRsvpService } from "./rsvp/waitlistService";
 
 // rsvp imports
 import { RsvpService } from "./rsvp/RsvpService";
@@ -28,19 +30,8 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
+  const rsvpService = CreateRsvpService(prismaClient);
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
-    // rsvp wiring
-    const rsvpRepo = createInMemoryRsvpRepository();
-    const rsvpService = new RsvpService(rsvpRepo);
-    const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
-
-    // comment wiring (depends on rsvpService for event lookup)
-    const commentRepo = createInMemoryCommentRepository();
-    const commentService = new CommentService(
-        commentRepo,
-        async (eventId: string) => await rsvpService.getEvent(eventId)
-    );
-    const commentController = CreateCommentController(commentService, resolvedLogger);
-
-  return CreateApp(authController, resolvedLogger, rsvpController, commentController);
+  return CreateApp(authController, rsvpController, resolvedLogger);
 }
