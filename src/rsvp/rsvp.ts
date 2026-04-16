@@ -13,4 +13,6 @@ export interface Event {
     rsvps: RSVP[] // store user's responses in array
     capacity?: number; // max number of people allowed
     createdByUserId: string; // event owner (organizer)
+    status: "active" | "cancelled"; // track event status (active/cancelled)
+    date: string;
 }
