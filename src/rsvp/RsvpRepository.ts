@@ -1,9 +1,9 @@
-import type { Event, RSVPStatus, RSVP} from "./Rsvp.ts" // import Rsvp.ts from current directory
+import type { Event, RSVPStatus, RSVP} from "./rsvp.ts" // import Rsvp.ts from current directory
 import type { Result } from "../lib/result"; // import result type
 
 export interface RSVPRepository {
     // Event methods
-    createEvent(title: string): Promise<Result<Event, Error>>;
+    createEvent(title: string, createdByUserId: string): Promise<Result<Event, Error>>;
     getEvent(id: string): Promise<Result<Event | null, Error>>; // return the event or null wrapped in a result
     getEvents(): Promise<Result<Event[], Error>>; // return is array of Event's in a result
 

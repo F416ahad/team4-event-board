@@ -7,10 +7,15 @@ import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
-
-import { RsvpService } from "./rsvp/RsvpService";
-import { CreateRsvpController } from "./rsvp/RsvpController";
-import { createInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
+import { InMemoryEventRepository } from "./events/InMemoryEventRepository";
+import { CreateArchiveService } from "./events/ArchiveService";
+import { CreateArchiveController } from "./events/ArchiveController";
+import { CreateAttendeeService } from "./events/AttendeeService";
+import { CreateAttendeeController } from "./events/AttendeeController";
+import { CreateInMemoryRsvpRepository } from "./events/InMemoryRsvpRepository";
+import { CreateEventService, type IEventService } from "./event_dash/EventService";
+import { CreateEventController } from "./event_dash/EventController";
+import { CreateInMemoryEventRepository } from "./event_dash/InMemoryEventRepository";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
@@ -21,11 +26,79 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
+  const rsvpService = CreateRsvpService(prismaClient);
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
-   // RSVP wiring
-  const rsvpRepo = createInMemoryRsvpRepository(); // initialize rsvp in-memory repo
-  const rsvpService = new RsvpService(rsvpRepo); // create rsvp service using repository
-  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger); // create rsvp controller with service and logger
-  
-  return CreateApp(authController, resolvedLogger, rsvpController); // combine controllers and logger into app instance
+  // Events wiring
+  const eventRepo = new InMemoryEventRepository();
+  const rsvpRepo = CreateInMemoryRsvpRepository();
+  const archiveService = CreateArchiveService(eventRepo);
+  const archiveController = CreateArchiveController(archiveService);
+  const attendeeService = CreateAttendeeService(rsvpRepo, eventRepo);
+  const attendeeController = CreateAttendeeController(attendeeService);
+
+  // Dev seed data
+  const now = new Date();
+  const past = (h: number) => new Date(now.getTime() - h * 60 * 60 * 1000);
+
+  eventRepo.seed([
+    {
+      title: 'Opening Keynote',
+      description: 'Annual kickoff event.',
+      location: 'Main Hall',
+      category: 'academic',
+      organizerId: 'organizer-1',
+      startTime: past(5),
+      endTime: past(4),
+      capacity: 200,
+      status: 'past',
+    },
+    {
+      title: 'Hackathon 2024',
+      description: '24-hour coding competition.',
+      location: 'Engineering Lab',
+      category: 'tech',
+      organizerId: 'organizer-1',
+      startTime: past(30),
+      endTime: past(6),
+      capacity: 50,
+      status: 'past',
+    },
+    {
+      title: 'Spring Social',
+      description: 'End of semester social.',
+      location: 'Courtyard',
+      category: 'social',
+      organizerId: 'organizer-1',
+      startTime: past(48),
+      endTime: past(46),
+      capacity: 100,
+      status: 'past',
+    },
+  ]);
+
+  // Seed RSVPs — userId 'organizer-1' matches the demo admin user
+  // We need an eventId to seed RSVPs, so grab the first seeded event
+  const seededEvents = eventRepo.getAll();
+  if (seededEvents.length > 0) {
+    const firstEventId = seededEvents[0].id;
+    rsvpRepo.seed([
+      { eventId: firstEventId, userId: 'user-1', displayName: 'Alice', status: 'attending' },
+      { eventId: firstEventId, userId: 'user-2', displayName: 'Bob', status: 'waitlisted' },
+      { eventId: firstEventId, userId: 'user-3', displayName: 'Carol', status: 'cancelled' },
+    ]);
+  }
+
+  // Transition expired events on startup, then every 60 seconds
+  archiveService.transitionExpired();
+  setInterval(() => archiveService.transitionExpired(), 60_000);
+
+  return CreateApp(authController, archiveController, attendeeController, resolvedLogger);
+}
+  // Event management wiring
+  const events = CreateInMemoryEventRepository();
+  const eventService = CreateEventService(events);
+  const eventController = CreateEventController(eventService);
+
+  return CreateApp(authController, resolvedLogger, eventController);
 }

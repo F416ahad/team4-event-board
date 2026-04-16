@@ -1,0 +1,56 @@
+<div class="saved-events-page" style="max-width: 800px; margin: 0 auto; padding: 20px;">
+  <h1>My Saved Events</h1>
+  <p>Events you've bookmarked for later.</p>
+  <hr />
+
+  <div id="savedList" style="margin-top: 20px;">
+    <% if (events.length === 0) { %>
+      <div style="background: #f8f9fa; padding: 40px; text-align: center; border-radius: 8px;">
+        <p>You haven't saved any events yet.</p>
+        <a href="/events/search" class="btn" style="color: #007bff; text-decoration: underline;">Go find some events!</a>
+      </div>
+    <% } else { %>
+      <ul style="list-style: none; padding: 0;">
+        <% events.forEach(function(event) { %>
+          <li style="border: 1px solid #ddd; padding: 20px; margin-bottom: 15px; border-radius: 8px; position: relative;">
+            <h3><%= event.title %></h3>
+            <p><strong>Location:</strong> <%= event.location %></p>
+            <p><strong>Date:</strong> <%= new Date(event.startDatetime).toLocaleDateString() %></p>
+            
+            <div style="margin-top: 10px;">
+              <a href="/events/<%= event.id %>" style="margin-right: 15px; color: #007bff;">View Details</a>
+              
+              <button 
+                onclick="unsaveEvent('<%= event.id %>')" 
+                style="background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                Remove from Saved
+              </button>
+            </div>
+          </li>
+        <% }); %>
+      </ul>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  async function unsaveEvent(eventId) {
+    if (!confirm('Remove this event from your saved list?')) return;
+
+    try {
+      const response = await fetch(`/events/${eventId}/save`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        // Refresh the page to show the updated list
+        window.location.reload();
+      } else {
+        alert('Failed to remove event.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred.');
+    }
+  }
+</script>

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import path from "node:path";
 import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
@@ -18,7 +19,10 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
-import { IRsvpController } from "./rsvp/RsvpController";
+import { IAttendeeController } from "./events/AttendeeController";
+import { IArchiveController } from "./events/ArchiveController";
+
+import { IEventController } from "./event_dash/EventController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -37,9 +41,11 @@ class ExpressApp implements IApp {
 
   constructor(
     private readonly authController: IAuthController,
-    private readonly logger: ILoggingService,
-
+    private readonly archiveController: IArchiveController,
+    private readonly attendeeController: IAttendeeController,
     private readonly rsvpController: IRsvpController,
+    private readonly logger: ILoggingService,
+    private readonly eventController: IEventController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -129,6 +135,13 @@ class ExpressApp implements IApp {
       layout: false,
     });
     return false;
+  }
+
+  // helper function to get string parameter from req.params
+   private getParam(param: string | string[] | undefined): string {
+      if(typeof param === "string") return param;
+      if(Array.isArray(param) && param.length > 0) return param[0];
+      return "";
   }
 
   private registerRoutes(): void {
@@ -253,7 +266,18 @@ class ExpressApp implements IApp {
 
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null });
+        const user = getAuthenticatedUser(sessionStore(req));
+        let dashboardData = null;
+        if (user && (user.role === "admin" || user.role === "staff")) {
+          const result = await this.eventController.getDashboardData(
+            user.userId,
+            user.role
+          );
+          if (result.ok){
+            dashboardData = result;
+          }
+        }
+        res.render("home", { session: browserSession, pageError: null, dashboardData });
       }),
     );
 
@@ -318,31 +342,151 @@ class ExpressApp implements IApp {
         const store = sessionStore(req); // get session store
         const browserSession = touchAppSession(store); // update session activity
 
-        await this.rsvpController.createEvent(res, title, capacity, browserSession); // create event
+        // get user from session
+        const user = getAuthenticatedUser(store);
+
+        if(!user)
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        await this.rsvpController.createEvent(res, title, capacity, browserSession, user.userId); // create event
       }),
     );
 
     // toggle rsvp 
     this.app.post(
-      "/events/:eventId/rsvp",
+      "/events/:eventId/rsvp/cancel",
       asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return; // make sure user is logged in
-
-        const store = sessionStore(req); // get session store
-        const user = getAuthenticatedUser(store); // get authenticated user
-
-        if(!user) 
-        {
-          res.status(401).json({ success: false, error: "Unauthorized" }); // Check if user is authenticated
+        if (!this.requireAuthenticated(req, res)) {
           return;
         }
 
-        const eventId = typeof req.params.eventId === "string" ? req.params.eventId : "";  // get eventId from URL
+        const eventId = this.getParam(req.params.eventId); // get eventId from URL
         const browserSession = touchAppSession(store); // update session activity
 
         await this.rsvpController.toggleRSVP(res, eventId, user.userId, browserSession); // toggle rsvp status
       }),
     );
+    
+    // ── Comment routes ───────────────────────────────────────────────
+
+    // post a new comment
+    this.app.post(
+      "/events/:eventId/comments",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return;
+
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        const eventId = this.getParam(req.params.eventId);
+        const content = typeof req.body.content === "string" ? req.body.content : "";
+        const browserSession = touchAppSession(store);
+        const ownerIdResult = await this.rsvpController.getEventOwnerId(eventId);
+        const eventOwnerId = ownerIdResult.ok ? ownerIdResult.value : null;
+        await this.commentController.postComment(
+          res,
+          eventId,
+          user.userId,
+          user.displayName,
+          content,
+          browserSession,
+          eventOwnerId,
+        );
+      }),
+    );
+
+    // delete a comment
+    this.app.delete(
+      "/events/:eventId/comments/:commentId",
+      asyncHandler(async (req, res) => {
+
+        if(!this.requireAuthenticated(req, res)) return;
+
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+       
+        const eventId = this.getParam(req.params.eventId);
+        const commentId = this.getParam(req.params.commentId);
+
+        if(!eventId || !commentId)
+        {
+          res.status(400).send("Invalid IDs");
+          return;
+        }
+        
+        const browserSession = touchAppSession(store);
+        const ownerIdResult = await this.rsvpController.getEventOwnerId(eventId);
+        const eventOwnerId = ownerIdResult.ok ? ownerIdResult.value : null;
+
+        await this.commentController.deleteComment(
+          res,
+          commentId,
+          eventId,
+          user.userId,
+          user.role,
+          eventOwnerId,
+          browserSession,
+        );
+      }),
+    );
+
+    // ── Feature 11: Past Event Archive ───────────────────────────────
+
+    this.app.get(
+      "/archive",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        await this.archiveController.getArchive(req, res);
+      }),
+    );
+
+    // ── Feature 12: Attendee List ────────────────────────────────────
+
+    this.app.get(
+      "/events/:eventId/attendees",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        await this.attendeeController.getAttendees(req, res);
+      }),
+    );
+
+  // ── Save for Later routes ────────────────────────────────────────
+
+  this.app.post(
+    "/events/:eventId/save",
+    asyncHandler(async (req, res) => {
+      // Requirement: "Organizers and admins do not have a saved list."
+      // We ensure only standard "user" roles can hit this endpoint.
+      if (!this.requireRole(req, res, ["user"], "Only members can save events.")) return;
+      
+      await SavedEventController.toggleSave(req, res);
+    }),
+  );
+
+  this.app.get(
+    "/my-saved-events",
+    asyncHandler(async (req, res) => {
+      if (!this.requireRole(req, res, ["user"], "Only members can view saved events.")) return;
+      
+      await SavedEventController.showSavedList(req, res);
+    }),
+  );
 
     // ── Error handler ────────────────────────────────────────────────
 
@@ -363,8 +507,13 @@ class ExpressApp implements IApp {
 
 export function CreateApp(
   authController: IAuthController,
+  archiveController: IArchiveController,
+  attendeeController: IAttendeeController,
   logger: ILoggingService,
-  rsvpController: IRsvpController,
 ): IApp {
-  return new ExpressApp(authController, logger, rsvpController);
+  return new ExpressApp(authController, archiveController, attendeeController, logger);
+}
+authController: IAuthController, logger: ILoggingService, eventController: IEventController,
+): IApp {
+  return new ExpressApp(authController, logger, eventController);
 }
