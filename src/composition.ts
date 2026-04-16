@@ -8,6 +8,16 @@ import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
 
+//
+import { RsvpService } from "./rsvp/RsvpService";
+import { CreateRsvpController } from "./rsvp/RsvpController";
+import { createInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
+
+import { CommentService } from "./comment/CommentService";
+import { CreateCommentController } from "./comment/CommentController";
+import { createInMemoryCommentRepository } from "./comment/InMemoryCommentRepository";
+
+
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
 
