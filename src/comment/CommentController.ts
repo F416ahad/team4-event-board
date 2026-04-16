@@ -103,3 +103,6 @@ class CommentController implements ICommentController {
     }
 }
 
+export function CreateCommentController(service: CommentService, logger: ILoggingService): ICommentController {
+    return new CommentController(service, logger);
+}
