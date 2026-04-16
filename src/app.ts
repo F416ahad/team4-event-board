@@ -4,6 +4,7 @@ import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
 import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
+import { SavedEventController } from './savedEvents/SavedEventController';
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -449,6 +450,28 @@ class ExpressApp implements IApp {
         await this.attendeeController.getAttendees(req, res);
       }),
     );
+
+  // ── Save for Later routes ────────────────────────────────────────
+
+  this.app.post(
+    "/events/:eventId/save",
+    asyncHandler(async (req, res) => {
+      // Requirement: "Organizers and admins do not have a saved list."
+      // We ensure only standard "user" roles can hit this endpoint.
+      if (!this.requireRole(req, res, ["user"], "Only members can save events.")) return;
+      
+      await SavedEventController.toggleSave(req, res);
+    }),
+  );
+
+  this.app.get(
+    "/my-saved-events",
+    asyncHandler(async (req, res) => {
+      if (!this.requireRole(req, res, ["user"], "Only members can view saved events.")) return;
+      
+      await SavedEventController.showSavedList(req, res);
+    }),
+  );
 
     // ── Error handler ────────────────────────────────────────────────
 
