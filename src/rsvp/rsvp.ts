@@ -12,4 +12,5 @@ export interface Event {
     title: string;
     rsvps: RSVP[] // store user's responses in array
     capacity?: number; // max number of people allowed
+    createdByUserId: string; // event owner (organizer)
 }
