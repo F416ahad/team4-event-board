@@ -93,4 +93,22 @@ class InMemoryRsvpRepository implements RSVPRepository {
         }
     }
 
+    async countGoing(eventId: string): Promise<Result<number, Error>> {
+        try {
+            const event = this.events.find(e => e.id === eventId);
+
+            if(!event) return Ok(0);
+
+            const count = event.rsvps.filter((r: { status: string; }) => r.status === "going").length;
+            return Ok(count);
+        } 
+        catch 
+        {
+            return Err(new Error("Unable to count RSVPs"));
+        }
+    }
+}
+
+export function createInMemoryRsvpRepository(): RSVPRepository {
+    return new InMemoryRsvpRepository();
 }
