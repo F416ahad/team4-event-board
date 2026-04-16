@@ -1,3 +1,4 @@
+import "dotenv/config";
 import path from "node:path";
 import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
