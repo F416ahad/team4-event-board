@@ -1,3 +1,4 @@
+import "dotenv/config";
 import path from "node:path";
 import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
@@ -17,7 +18,7 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
-import { IRsvpController } from "./rsvp/RsvpController";
+import { IRsvpController } from "./rsvp/waitlistController";
 
 // rsvp and comment controller imports
 import { IRsvpController } from "./rsvp/RsvpController";
@@ -40,6 +41,7 @@ class ExpressApp implements IApp {
 
   constructor(
     private readonly authController: IAuthController,
+    private readonly rsvpController: IRsvpController,
     private readonly logger: ILoggingService,
     private readonly rsvpController: IRsvpController,   // rsvpController constructor
     private readonly commentController: ICommentController, // commentController constructor
@@ -328,16 +330,9 @@ class ExpressApp implements IApp {
 
     // toggle rsvp 
     this.app.post(
-      "/events/:eventId/rsvp",
+      "/events/:eventId/rsvp/cancel",
       asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return; // make sure user is logged in
-
-        const store = sessionStore(req); // get session store
-        const user = getAuthenticatedUser(store); // get authenticated user
-
-        if(!user) 
-        {
-          res.status(401).json({ success: false, error: "Unauthorized" }); // Check if user is authenticated
+        if (!this.requireAuthenticated(req, res)) {
           return;
         }
 
@@ -443,6 +438,7 @@ class ExpressApp implements IApp {
 
 export function CreateApp(
   authController: IAuthController,
+  rsvpController: IRsvpController,
   logger: ILoggingService,
   rsvpController: IRsvpController,
   commentController: ICommentController,
