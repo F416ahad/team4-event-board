@@ -18,6 +18,10 @@ import {
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
 
+// rsvp and comment controller imports
+import { IRsvpController } from "./rsvp/RsvpController";
+import { ICommentController } from "./comment/CommentController";
+
 type AsyncRequestHandler = RequestHandler;
 
 function asyncHandler(fn: AsyncRequestHandler) {
