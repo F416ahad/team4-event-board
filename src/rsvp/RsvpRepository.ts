@@ -1,4 +1,4 @@
-import type { Event, RSVPStatus, RSVP} from "./Rsvp.ts" // import Rsvp.ts from current directory
+import type { Event, RSVPStatus, RSVP} from "./rsvp.ts" // import Rsvp.ts from current directory
 import type { Result } from "../lib/result"; // import result type
 
 export interface RSVPRepository {
