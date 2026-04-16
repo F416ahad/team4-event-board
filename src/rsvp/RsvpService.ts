@@ -25,6 +25,20 @@ export class RsvpService {
 
       if(!event) return Err(new Error("Event not found")); // check if event exists
 
+      // reject if event is cancelled
+      if(event.status === "cancelled") 
+      {
+        return Err(new Error("Cannot RSVP to a cancelled event"));
+    
+      }
+
+      // reject if event date is in the past
+      if(new Date(event.date) < new Date()) 
+      {
+        return Err(new Error("Cannot RSVP to a past event"));
+      }
+
+
       // Get rsvp for user
       const rsvpResult = await this.repo.getRSVP(eventId, userId);
 
@@ -123,8 +137,9 @@ export class RsvpService {
     return await this.repo.getRSVP(eventId, userId);
   }
 
-  async createEvent(title: string, capacity?: number): Promise<Result<Event, Error>> {
-    const result = await this.repo.createEvent(title);
+  // create event (needs owner id)
+  async createEvent(title: string, createdByUserId: string, capacity?: number,): Promise<Result<Event, Error>> {
+    const result = await this.repo.createEvent(title, createdByUserId);
 
     if(!result.ok) return result;
 
@@ -137,4 +152,5 @@ export class RsvpService {
 
     return Ok(event);
   }
+
 }
