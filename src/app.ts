@@ -17,6 +17,7 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
+import { IRsvpController } from "./rsvp/RsvpController";
 
 // rsvp and comment controller imports
 import { IRsvpController } from "./rsvp/RsvpController";
@@ -265,6 +266,8 @@ class ExpressApp implements IApp {
         res.render("home", { session: browserSession, pageError: null });
       }),
     );
+
+    // ── RSVP routes ───────────────────────────────────────────────────
 
     // list all events (authenticated users)
     this.app.get(
