@@ -1,39 +1,32 @@
 import * as eventRepo from '../repositories/InMemoryEventRepository.js';
 
 /**
- * feature 6 Service Logic: Category and Date Filter
+ * service to handle the logic for viewing event details
+ * 
+ * * @param {string} eventId 
+ * @param {Object} currentUser 
+ * @returns {Object} result pattern: { ok: boolean, value?: Object, error?: string }
  */
-export const getFilteredEvents = async (filters = {}) => {
-    try {
-        const allEvents = await eventRepo.findAll();
+export const getEventDetail = async (eventId, currentUser) => {
+  const event = await eventRepo.findEventById(eventId);
 
-        // 1. only published events
-        let filtered = allEvents.filter(e => e.status === 'published');
+  // rule 1: If it doesn't exist in the repo it's a 404
+  if (!event) {
+    return { ok: false, error: "Event not found" };
+  }
 
-        // 2. filter by Category
-        if (filters.category && filters.category !== 'all') {
-            filtered = filtered.filter(e => 
-                e.category.toLowerCase() === filters.category.toLowerCase()
-            );
-        }
+  // rule 2: any user can see 'published' events but drafts are restricted.
+  if (event.status === 'draft') {
+    const isOrganizer = currentUser?.id === event.organizerId;
+    const isAdmin = currentUser?.role === 'admin';
 
-        // 3. filter by Timeframe
-        const now = new Date();
-        if (filters.timeframe === 'this-week') {
-            const nextWeek = new Date();
-            nextWeek.setDate(now.getDate() + 7);
-            filtered = filtered.filter(e => new Date(e.startDatetime) <= nextWeek);
-            
-        } else if (filters.timeframe === 'this-weekend') {
-            const sunday = new Date();
-            const daysUntilSunday = 7 - sunday.getDay();
-            sunday.setDate(now.getDate() + daysUntilSunday);
-            sunday.setHours(23, 59, 59, 999);
-            filtered = filtered.filter(e => new Date(e.startDatetime) <= sunday);
-        }
-
-        return { ok: true, value: filtered };
-    } catch (error) {
-        return { ok: false, error: 'Service error: ' + error.message };
+    if (!isOrganizer && !isAdmin) {
+      // security by obscurity: return "Not found" so unauthorized users 
+      // don't even know a draft exists at this ID
+      return { ok: false, error: "Event not found" };
     }
+  }
+
+  // success path
+  return { ok: true, value: event };
 };
