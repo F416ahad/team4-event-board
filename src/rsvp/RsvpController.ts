@@ -9,7 +9,7 @@ export interface IRsvpController {
   toggleRSVP(res: Response, eventId: string, userId: string, session: IAppBrowserSession): Promise<void>;
   showEvents(res: Response, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
   showEvent(res: Response, eventId: string, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
-  createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession): Promise<void>;
+  createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession, userId: string): Promise<void>;
   getEventOwnerId(eventId: string): Promise<Result<string | null, Error>>;
 }
 
@@ -114,7 +114,7 @@ class RsvpController implements IRsvpController {
   }
     
     // create an event (admin/staff)
-   async createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession): Promise<void> {
+   async createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession, userId: string): Promise<void> {
     if (!title) {
       res.status(400).render("events/new", {
         session,
@@ -124,7 +124,7 @@ class RsvpController implements IRsvpController {
       return;
     }
 
-    const result = await this.service.createEvent(title, capacity);
+    const result = await this.service.createEvent(title, userId, capacity);
     if(!result.ok) 
     {
       this.logger.error(`Failed to create event: ${result.value.message}`);
@@ -139,7 +139,10 @@ class RsvpController implements IRsvpController {
     res.redirect("/events");
   }
 
-
+  // get getEventOwnerId for comment controller
+  async getEventOwnerId(eventId: string): Promise<Result<string | null, Error>> {
+        return await this.service.getEventOwnerId(eventId);
+    }
 }
 
 // create factory function to create controller instance
