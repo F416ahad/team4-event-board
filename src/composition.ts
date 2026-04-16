@@ -42,5 +42,5 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     );
     const commentController = CreateCommentController(commentService, resolvedLogger);
 
-  return CreateApp(authController, resolvedLogger);
+  return CreateApp(authController, resolvedLogger, rsvpController, commentController);
 }
