@@ -47,5 +47,34 @@ class InMemoryRsvpRepository implements RSVPRepository {
             return Err(new Error("Unable to get events"));
         }
     }
+
+    async addRSVP(
+        eventId: string,
+        userId: string,
+        status: RSVPStatus
+    ): Promise<Result<void, Error>> {
+        try {
+            const event = this.events.find(e => e.id === eventId);
+
+            if(!event) return Err(new Error("Event not found"));
+
+            const existing = event.rsvps.find((r: { userId: string; }) => r.userId === userId);
+            
+            if(existing) 
+            {
+                existing.status = status;
+            } 
+            else 
+            {
+                event.rsvps.push({ userId, status });
+            }
+            return Ok(undefined);
+
+        } 
+        catch 
+        {
+            return Err(new Error("Unable to add RSVP"));
+        }
+    }
+
 }
-    
