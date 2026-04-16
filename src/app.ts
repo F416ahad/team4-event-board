@@ -3,6 +3,7 @@ import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
 import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
+import { EventSearchController } from './events/EventSearchController';
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -256,7 +257,22 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // ── Search routes ────────────────────────────────────────────────
+
+    this.app.get(
+      "/events/search",
+      asyncHandler(async (req, res) => {
+        // 1. Make sure the user is logged in
+        if (!this.requireAuthenticated(req, res)) return; 
+        
+        // 2. Pass the request and response to your shiny new controller!
+        await EventSearchController.handleSearch(req, res);
+      }),
+    );
+
     // ── RSVP routes ───────────────────────────────────────────────────
+
+    
 
     // list all events (authenticated users)
     this.app.get(
@@ -281,7 +297,7 @@ class ExpressApp implements IApp {
         const store = sessionStore(req); // get session store from request
         const browserSession = recordPageView(store); // record page view for session tracking
         const user = getAuthenticatedUser(store); // get current authenticated user
-        const eventId = req.params.eventId; // get eventId from URL
+        const eventId = typeof req.params.eventId === "string" ? req.params.eventId : ""; // get eventId from URL
 
         await this.rsvpController.showEvent(res, eventId, browserSession, user?.userId); // get and return event details
       }),
@@ -321,7 +337,7 @@ class ExpressApp implements IApp {
           return;
         }
 
-        const eventId = req.params.eventId;  // get eventId from URL
+        const eventId = typeof req.params.eventId === "string" ? req.params.eventId : "";  // get eventId from URL
         const browserSession = touchAppSession(store); // update session activity
 
         await this.rsvpController.toggleRSVP(res, eventId, user.userId, browserSession); // toggle rsvp status
