@@ -153,4 +153,9 @@ export class RsvpService {
     return Ok(event);
   }
 
+  // count how many "going" for an event
+  async countGoing(eventId: string): Promise<Result<number, Error>> 
+  {
+    return await this.repo.countGoing(eventId);
+  }
 }
