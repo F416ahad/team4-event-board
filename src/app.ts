@@ -17,6 +17,7 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
+import { IRsvpController } from "./rsvp/RsvpController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -36,6 +37,8 @@ class ExpressApp implements IApp {
   constructor(
     private readonly authController: IAuthController,
     private readonly logger: ILoggingService,
+
+    private readonly rsvpController: IRsvpController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -253,6 +256,78 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // ── RSVP routes ───────────────────────────────────────────────────
+
+    // list all events (authenticated users)
+    this.app.get(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store from request
+        const browserSession = recordPageView(store); // record page view for session tracking
+        const user = getAuthenticatedUser(store); // get current authenticated user
+
+        await this.rsvpController.showEvents(res, browserSession, user?.userId); // get and return events
+      }),
+    );
+
+    // Show single event detail with rsvp button
+    this.app.get(
+      "/events/:eventId",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store from request
+        const browserSession = recordPageView(store); // record page view for session tracking
+        const user = getAuthenticatedUser(store); // get current authenticated user
+        const eventId = req.params.eventId; // get eventId from URL
+
+        await this.rsvpController.showEvent(res, eventId, browserSession, user?.userId); // get and return event details
+      }),
+    );
+
+    // create new event (admin or staff only)
+    this.app.post(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can create events.")) 
+        {
+          return; // make sure user has required role
+        }
+
+        const title = typeof req.body.title === "string" ? req.body.title.trim() : ""; // validate and trim title
+        const capacity = req.body.capacity ? parseInt(req.body.capacity, 10) : undefined; // get capacity if provided
+
+        const store = sessionStore(req); // get session store
+        const browserSession = touchAppSession(store); // update session activity
+
+        await this.rsvpController.createEvent(res, title, capacity, browserSession); // create event
+      }),
+    );
+
+    // toggle rsvp 
+    this.app.post(
+      "/events/:eventId/rsvp",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store
+        const user = getAuthenticatedUser(store); // get authenticated user
+
+        if(!user) 
+        {
+          res.status(401).json({ success: false, error: "Unauthorized" }); // Check if user is authenticated
+          return;
+        }
+
+        const eventId = req.params.eventId;  // get eventId from URL
+        const browserSession = touchAppSession(store); // update session activity
+
+        await this.rsvpController.toggleRSVP(res, eventId, user.userId, browserSession); // toggle rsvp status
+      }),
+    );
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -273,6 +348,7 @@ class ExpressApp implements IApp {
 export function CreateApp(
   authController: IAuthController,
   logger: ILoggingService,
+  rsvpController: IRsvpController,
 ): IApp {
-  return new ExpressApp(authController, logger);
+  return new ExpressApp(authController, logger, rsvpController);
 }
