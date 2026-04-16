@@ -289,8 +289,8 @@ class ExpressApp implements IApp {
         const store = sessionStore(req); // get session store from request
         const browserSession = recordPageView(store); // record page view for session tracking
         const user = getAuthenticatedUser(store); // get current authenticated user
-        const eventId = req.params.eventId; // get eventId from URL
-
+        const eventId = this.getParam(req.params.eventId); // get eventId from URL
+ 
         await this.rsvpController.showEvent(res, eventId, browserSession, user?.userId); // get and return event details
       }),
     );
@@ -379,6 +379,47 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // delete a comment
+    this.app.delete(
+      "/events/:eventId/comments/:commentId",
+      asyncHandler(async (req, res) => {
+
+        if(!this.requireAuthenticated(req, res)) return;
+
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+       
+        const eventId = this.getParam(req.params.eventId);
+        const commentId = this.getParam(req.params.commentId);
+
+        if(!eventId || !commentId)
+        {
+          res.status(400).send("Invalid IDs");
+          return;
+        }
+        
+        const browserSession = touchAppSession(store);
+        const ownerIdResult = await this.rsvpController.getEventOwnerId(eventId);
+        const eventOwnerId = ownerIdResult.ok ? ownerIdResult.value : null;
+
+        await this.commentController.deleteComment(
+          res,
+          commentId,
+          eventId,
+          user.userId,
+          user.role,
+          eventOwnerId,
+          browserSession,
+        );
+      }),
+    );
 
     // ── Error handler ────────────────────────────────────────────────
 
