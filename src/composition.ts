@@ -34,6 +34,13 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     const rsvpService = new RsvpService(rsvpRepo);
     const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
+    // comment wiring (depends on rsvpService for event lookup)
+    const commentRepo = createInMemoryCommentRepository();
+    const commentService = new CommentService(
+        commentRepo,
+        async (eventId: string) => await rsvpService.getEvent(eventId)
+    );
+    const commentController = CreateCommentController(commentService, resolvedLogger);
 
   return CreateApp(authController, resolvedLogger);
 }
