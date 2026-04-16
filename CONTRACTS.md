@@ -5,7 +5,70 @@ Do not change a method's signature, return shape, or error names without updatin
 and notifying all teammates who depend on it. Breaking a contract after a teammate has built
 against it is an Integration Compromise (−10 pts per sprint).
 
+Feature 2 — Event Details
+EventService.getEventById(id)
+
+getEventById(id: string): Promise<Result<Event, EventError>>
+
+Parameters:
+
+id — the unique string ID of the event to retrieve.
+
+Success: Ok(event) where event is a single Event object.
+
+Errors:
+
+"NotFound": No event exists with the provided ID.
+
+"EventError": Repository threw an unexpected error.
+
+Event shape:
+
+TypeScript
+{
+  id: string
+  title: string
+  description: string
+  location: string
+  category: EventCategory
+  organizerId: string
+  startTime: Date
+  endTime: Date
+  capacity: number
+  status: "published" | "draft" | "past"
+  createdAt: Date
+}
 ---
+Feature 6 — Category and Date Filter (Feature 2 Owner)
+EventService.getFilteredEvents(filters)
+
+getFilteredEvents(filters: EventFilters): Promise<Result<Event[], EventError>>
+
+Parameters:
+
+filters — an object containing:
+
+category?: EventCategory | "all"
+
+timeframe?: "all-upcoming" | "this-week" | "this-weekend"
+
+Success: Ok(events) where events is an array of Event objects matching the criteria.
+
+Rule: Only events with status === "published" are returned.
+
+Rule: If category is "all" or omitted, do not filter by category.
+
+Errors:
+
+"EventError": Repository threw an unexpected error.
+
+EventFilters shape:
+
+TypeScript
+{
+  category?: string;
+  timeframe?: string;
+}
 
 ## Feature 11 — Past Event Archive
 
