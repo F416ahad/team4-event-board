@@ -39,7 +39,7 @@ TypeScript
   createdAt: Date
 }
 ---
-Feature 6 — Category and Date Filter (Feature 2 Owner)
+Feature 6 — Category and Date Filter 
 EventService.getFilteredEvents(filters)
 
 getFilteredEvents(filters: EventFilters): Promise<Result<Event[], EventError>>
