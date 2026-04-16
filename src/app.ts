@@ -40,6 +40,8 @@ class ExpressApp implements IApp {
   constructor(
     private readonly authController: IAuthController,
     private readonly logger: ILoggingService,
+    private readonly rsvpController: IRsvpController,   // rsvpController constructor
+    private readonly commentController: ICommentController, // commentController constructor
   ) {
     this.app = express();
     this.registerMiddleware();
