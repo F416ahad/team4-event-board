@@ -54,4 +54,25 @@ class CommentController implements ICommentController {
         await this.renderCommentList(res, eventId, userId, eventOwnerId ?? undefined, session);
     }
 
+    async deleteComment(
+        res: Response,
+        commentId: string,
+        eventId: string,
+        currentUserId: string | undefined,
+        currentUserRole: string | undefined,
+        eventOwnerId: string | null,
+        session: IAppBrowserSession,
+    ): Promise<void> {
+
+        const result = await this.service.deleteComment(commentId, currentUserId, currentUserRole, eventOwnerId ?? undefined);
+
+        if(!result.ok) 
+        {
+            this.logger.warn(`Comment delete failed: ${result.value.message}`);
+            res.status(403).send(`<div class="error">${result.value.message}</div>`);
+            return;
+        }
+
+        await this.renderCommentList(res, eventId, currentUserId, eventOwnerId ?? undefined, session);
+    }
 }
