@@ -8,6 +8,10 @@ import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
 
+import { RsvpService } from "./rsvp/RsvpService";
+import { CreateRsvpController } from "./rsvp/RsvpController";
+import { createInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
+
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
 
@@ -18,5 +22,10 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  return CreateApp(authController, resolvedLogger);
+   // RSVP wiring
+  const rsvpRepo = createInMemoryRsvpRepository(); // initialize rsvp in-memory repo
+  const rsvpService = new RsvpService(rsvpRepo); // create rsvp service using repository
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger); // create rsvp controller with service and logger
+  
+  return CreateApp(authController, resolvedLogger, rsvpController); // combine controllers and logger into app instance
 }
