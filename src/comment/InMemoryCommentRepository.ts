@@ -1,114 +1,67 @@
-import { randomUUID } from "node:crypto"; // for generating unique IDs
+import { randomUUID } from "node:crypto"; // for generating unique ids
 import { Err, Ok, type Result } from "../lib/result";
-import type { Event, RSVP, RSVPStatus } from "../rsvp/rsvp.ts";
-import type { RSVPRepository } from "../rsvp/RsvpRepository.ts";
+import type { Comment } from "./Comment";
+import type { CommentRepository } from "./CommentRepository";
 
-class InMemoryRsvpRepository implements RSVPRepository {
-    private events: Event[] = [];
+class InMemoryCommentRepository implements CommentRepository {
+    private comments: Comment[] = [];
 
-    async createEvent(title: string, createdByUserId: string): Promise<Result<Event, Error>> {
+    async createComment(comment: Omit<Comment, "id">): Promise<Result<Comment, Error>> {
         try {
-            const event: Event = {
+            const newComment: Comment = {
+                ...comment,
                 id: randomUUID(),
-                title,
-                rsvps: [],
-                status: "active",
-                date: new Date().toISOString(),
-                createdByUserId,
             };
-            this.events.push(event);
 
-            return Ok(event);
+            this.comments.push(newComment);
+            return Ok(newComment);
         } 
         catch 
         {
-            return Err(new Error("Unable to create event"));
+            return Err(new Error("Unable to create comment"));
         }
     }
 
-    async getEvent(id: string): Promise<Result<Event | null, Error>> {
+    async getCommentsByEvent(eventId: string): Promise<Result<Comment[], Error>> {
         try {
-            const event = this.events.find(e => e.id === id) ?? null;
-
-            return Ok(event);
+            const eventComments = this.comments
+                .filter(c => c.eventId === eventId)
+                .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+            return Ok(eventComments);
         } 
         catch 
         {
-            return Err(new Error("Unable to get event"));
+            return Err(new Error("Unable to fetch comments"));
         }
     }
 
-    async getEvents(): Promise<Result<Event[], Error>> {
+    async deleteComment(commentId: string): Promise<Result<boolean, Error>> {
         try {
-            return Ok([...this.events]);
-        } 
-        catch 
-        {
-            return Err(new Error("Unable to get events"));
-        }
-    }
-    
-    async addRSVP(
-        eventId: string,
-        userId: string,
-        status: RSVPStatus
-    ): Promise<Result<void, Error>> {
-        try {
-            const event = this.events.find(e => e.id === eventId);
-
-            if(!event) return Err(new Error("Event not found"));
-
-            const existing = event.rsvps.find((r: { userId: string; }) => r.userId === userId);
-            
-            if(existing) 
-            {
-                existing.status = status;
-            } 
-            else 
-            {
-                event.rsvps.push({ userId, status });
-            }
-            return Ok(undefined);
+            const index = this.comments.findIndex(c => c.id === commentId);
+            if (index === -1) return Ok(false);
+            this.comments.splice(index, 1);
+            return Ok(true);
 
         } 
         catch 
         {
-            return Err(new Error("Unable to add RSVP"));
+            return Err(new Error("Unable to delete comment"));
         }
     }
 
-    async getRSVP(eventId: string, userId: string): Promise<Result<RSVP | null, Error>> {
+    async findCommentById(commentId: string): Promise<Result<Comment | null, Error>> {
         try {
-            const event = this.events.find(e => e.id === eventId);
+            const comment = this.comments.find(c => c.id === commentId) ?? null;
+            return Ok(comment);
 
-            if(!event) return Ok(null);
-
-            const rsvp = event.rsvps.find((r: { userId: string; }) => r.userId === userId) ?? null;
-
-            return Ok(rsvp);
         } 
         catch 
         {
-            return Err(new Error("Unable to get RSVP"));
-        }
-    }
-
-    async countGoing(eventId: string): Promise<Result<number, Error>> {
-        try {
-            const event = this.events.find(e => e.id === eventId);
-
-            if(!event) return Ok(0);
-
-            const count = event.rsvps.filter((r: { status: string; }) => r.status === "going").length;
-            return Ok(count);
-        } 
-        catch 
-        {
-            return Err(new Error("Unable to count RSVPs"));
+            return Err(new Error("Unable to find comment"));
         }
     }
 }
 
-export function createInMemoryRsvpRepository(): RSVPRepository {
-    return new InMemoryRsvpRepository();
+export function createInMemoryCommentRepository(): CommentRepository {
+    return new InMemoryCommentRepository();
 }
