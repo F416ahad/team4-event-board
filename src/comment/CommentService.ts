@@ -1,7 +1,7 @@
 import { Ok, Err, type Result } from "../lib/result";
 import type { CommentRepository } from "./CommentRepository";
 import type { Comment, CommentWithPermissions } from "./Comment";
-import type { Event } from "../rsvp/Rsvp.ts";
+import type { Event } from "../rsvp/rsvp.ts";
 
 export class CommentService {
     constructor(

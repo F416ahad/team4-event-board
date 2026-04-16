@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"; // for generating unique IDs
 import { Err, Ok, type Result } from "../lib/result";
-import type { Event, RSVP, RSVPStatus } from "../rsvp/Rsvp.ts";
+import type { Event, RSVP, RSVPStatus } from "../rsvp/rsvp.ts";
 import type { RSVPRepository } from "../rsvp/RsvpRepository.ts";
 
 class InMemoryRsvpRepository implements RSVPRepository {

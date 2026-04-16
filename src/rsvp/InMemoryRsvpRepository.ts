@@ -1,5 +1,5 @@
 import { Err, Ok, type Result } from "../lib/result";
-import type { Event, RSVP, RSVPStatus} from "./Rsvp.ts" // import Rsvp.ts from current directory
+import type { Event, RSVP, RSVPStatus} from "./rsvp.ts" // import Rsvp.ts from current directory
 import type { RSVPRepository } from "./RsvpRepository.ts";
 
 class InMemoryRsvpRepository implements RSVPRepository {
