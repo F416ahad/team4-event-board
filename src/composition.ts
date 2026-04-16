@@ -7,6 +7,8 @@ import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
+import { CreateRsvpController } from "./rsvp/waitlistController";
+import { CreateRsvpService } from "./rsvp/waitlistService";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
@@ -17,6 +19,8 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
+  const rsvpService = CreateRsvpService(prismaClient);
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
-  return CreateApp(authController, resolvedLogger);
+  return CreateApp(authController, rsvpController, resolvedLogger);
 }

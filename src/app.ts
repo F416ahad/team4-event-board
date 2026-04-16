@@ -18,6 +18,7 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
+import { IRsvpController } from "./rsvp/waitlistController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -36,6 +37,7 @@ class ExpressApp implements IApp {
 
   constructor(
     private readonly authController: IAuthController,
+    private readonly rsvpController: IRsvpController,
     private readonly logger: ILoggingService,
   ) {
     this.app = express();
@@ -254,6 +256,22 @@ class ExpressApp implements IApp {
       }),
     );
 
+    this.app.post(
+      "/events/:eventId/rsvp/cancel",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+      }
+      const eventId = typeof req.params.eventId === "string" ? req.params.eventId : "";
+      const session = touchAppSession(sessionStore(req));
+      await this.rsvpController.cancelRsvpFromForm(
+        res,
+        eventId,
+        session
+      );
+    }),
+  );
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -273,7 +291,8 @@ class ExpressApp implements IApp {
 
 export function CreateApp(
   authController: IAuthController,
+  rsvpController: IRsvpController,
   logger: ILoggingService,
 ): IApp {
-  return new ExpressApp(authController, logger);
+  return new ExpressApp(authController, rsvpController, logger);
 }
