@@ -10,6 +10,17 @@ import type { ILoggingService } from "./service/LoggingService";
 import { CreateRsvpController } from "./rsvp/waitlistController";
 import { CreateRsvpService } from "./rsvp/waitlistService";
 
+// rsvp imports
+import { RsvpService } from "./rsvp/RsvpService";
+import { CreateRsvpController } from "./rsvp/RsvpController";
+import { createInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
+
+// comment imports
+import { CommentService } from "./comment/CommentService";
+import { CreateCommentController } from "./comment/CommentController";
+import { createInMemoryCommentRepository } from "./comment/InMemoryCommentRepository";
+
+
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
 

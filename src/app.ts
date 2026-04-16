@@ -39,6 +39,8 @@ class ExpressApp implements IApp {
     private readonly authController: IAuthController,
     private readonly rsvpController: IRsvpController,
     private readonly logger: ILoggingService,
+
+    private readonly rsvpController: IRsvpController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -293,6 +295,7 @@ export function CreateApp(
   authController: IAuthController,
   rsvpController: IRsvpController,
   logger: ILoggingService,
+  rsvpController: IRsvpController,
 ): IApp {
   return new ExpressApp(authController, rsvpController, logger);
 }
