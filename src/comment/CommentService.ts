@@ -98,4 +98,18 @@ export class CommentService {
         return Ok(undefined);
     }
 
+    private canDeleteComment(
+        comment: Comment,
+        currentUserId: string | undefined,
+        eventOwnerId: string | undefined,
+        currentUserRole: string = "user",
+    ): 
+    boolean
+    {
+        if(!currentUserId) return false; // ff user not logged in, can't delete
+        if(currentUserRole === "admin") return true; // admins can delete any comment
+        if(eventOwnerId && currentUserId === eventOwnerId) return true; // event owner can delete comments on their event
+        if(comment.userId === currentUserId) return true; // comment author can delete their own comment
+        return false; // all other users are not allowed to delete
+    }
 }
