@@ -1,6 +1,6 @@
 <%# 
   Event detail page.
-  Shows event information, RSVP toggle button (with fetch API), and comments section (HTMX).
+  Shows event information, RSVP toggle button (HTMX), and comments section (HTMX).
   Requires user to be authenticated.
 %>
 
@@ -34,20 +34,24 @@
         </div>
       </div>
 
-      <%# RSVP Toggle Button (HTMX) %>
+      <%# RSVP Toggle Button, server-rendered initial state, then HTMX swaps the whole block %>
       <div class="mt-6 pt-4 border-t border-slate-200" id="rsvp-status">
         <button hx-post="/events/<%= event.id %>/rsvp"
                 hx-target="#rsvp-status"
                 hx-swap="outerHTML"
-                hx-headers='{"X-Requested-With": "XMLHttpRequest"}'
-                class="px-6 py-2.5 rounded-lg font-medium transition-colors">
-          Loading...
+                class="px-6 py-2.5 rounded-lg font-medium transition-colors
+                       <%= userRsvp?.status === 'going' ? 'bg-red-600 hover:bg-red-700' :
+                          userRsvp?.status === 'waitlisted' ? 'bg-yellow-600 hover:bg-yellow-700' :
+                          'bg-blue-600 hover:bg-blue-700' %>">
+          <% if (userRsvp?.status === 'going') { %>Cancel RSVP<% 
+             } else if (userRsvp?.status === 'waitlisted') { %>Waitlisted<% 
+             } else { %>RSVP<% } %>
         </button>
-        <p class="text-sm text-slate-500 mt-2">Attendees going: <span id="attendee-count-loading">Loading...</span></p>
+        <p class="text-sm text-slate-500 mt-2">Attendees going: <span><%= attendeeCount || 0 %></span></p>
       </div>
     </div>
 
-    <%# Comments Section (HTMX) %>
+    <%# comments section (HTMX) %>
     <div class="p-6 border border-slate-200 rounded-2xl bg-white shadow-md">
       <h2 class="text-xl font-semibold mb-4">Comments</h2>
       <div id="comment-list-container" 
@@ -63,9 +67,7 @@
       <a href="/events" class="text-blue-600 hover:underline">&larr; Back to Events</a>
     </div>
   </div>
-
-   <%# all fetch/JavaScript removed, HTMX now handles everything inline %>
-  <% } else { %>
+<% } else { %>
   <div class="p-6 border border-red-200 rounded-2xl bg-red-50 text-red-800">
     <p>Event not found.</p>
   </div>
