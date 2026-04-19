@@ -32,11 +32,6 @@
           <p class="text-sm text-slate-500">Capacity</p>
           <p class="font-medium"><%= event.capacity ? event.capacity : 'Unlimited' %></p>
         </div>
-        <div>
-          <p class="text-sm text-slate-500">Attendees going</p>
-          <%# HTMX will update this container %>
-          <p class="font-medium text-lg" id="attendee-count">Loading...</p>
-        </div>
       </div>
 
       <%# RSVP Toggle Button (HTMX) %>
