@@ -26,7 +26,7 @@ export class CommentService {
 
         if(!content.trim()) {
         
-            return Err(new Error("Comment cannot be empty"));
+            return Err(new CommentEmptyError());
         }
         if(content.length > 500) 
         {
