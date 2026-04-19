@@ -11,6 +11,8 @@ export interface IRsvpController {
   showEvent(res: Response, eventId: string, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
   createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession, userId: string): Promise<void>;
   getEventOwnerId(eventId: string): Promise<Result<string | null, Error>>;
+  getUserRsvpStatus(res: Response, eventId: string, userId: string): Promise<void>;
+  getAttendeeCount(res: Response, eventId: string): Promise<void>;
 }
 
 class RsvpController implements IRsvpController {
@@ -69,7 +71,8 @@ class RsvpController implements IRsvpController {
     const result = await this.service.listEvents();
     if(!result.ok) 
     {
-      this.logger.error(`Failed to list events: ${result.value.message}`);
+      const error = result.value as Error;
+      this.logger.error(`Failed to list events: ${error.message}`);
       res.status(500).render("events/index", {
         session,
         events: [],
@@ -91,7 +94,7 @@ class RsvpController implements IRsvpController {
 
     if(!result.ok || !result.value) 
     {
-      const errorMsg = result.ok === false ? result.value.message : "Event not found";
+      const errorMsg = result.ok === false ? (result.value as Error).message : "Event not found";
       this.logger.warn(`Event not found: ${eventId}`);
       res.status(404).render("events/show", {
         session,
@@ -127,10 +130,11 @@ class RsvpController implements IRsvpController {
     const result = await this.service.createEvent(title, userId, capacity);
     if(!result.ok) 
     {
-      this.logger.error(`Failed to create event: ${result.value.message}`);
+      const error = result.value as Error;
+      this.logger.error(`Failed to create event: ${error.message}`);
       res.status(400).render("events/new", {
         session,
-        error: result.value.message,
+        error: error.message,
         event: null,
       });
       return;
@@ -143,6 +147,39 @@ class RsvpController implements IRsvpController {
   async getEventOwnerId(eventId: string): Promise<Result<string | null, Error>> {
         return await this.service.getEventOwnerId(eventId);
     }
+
+  // get current user's rsvp status for an event
+  async getUserRsvpStatus(
+    res: Response,
+    eventId: string,
+    userId: string
+  ): Promise<void> {
+    const result = await this.service.getUserRsvp(eventId, userId);
+
+    if(!result.ok) 
+    {
+      // Cast to Error because ok === false
+      res.status(500).json({ error: (result.value as Error).message });
+      return;
+    }
+
+    const status = result.value?.status ?? null;
+    res.json({ status });
+  }
+
+  // Get attendee count (number of "going") for an event
+  async getAttendeeCount(
+    res: Response,
+    eventId: string
+  ): Promise<void> {
+    const result = await this.service.countGoing(eventId);
+    if (!result.ok) {
+      // Cast to Error because ok === false
+      res.status(500).json({ error: (result.value as Error).message });
+      return;
+    }
+    res.json({ count: result.value });
+  }
 }
 
 // create factory function to create controller instance
