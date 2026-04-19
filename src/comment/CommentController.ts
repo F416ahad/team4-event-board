@@ -23,6 +23,14 @@ export interface ICommentController {
         eventOwnerId: string | null,
         session: IAppBrowserSession,
     ): Promise<void>;
+
+    renderCommentsPartial(
+        res: Response,
+        eventId: string,
+        currentUserId: string | undefined,
+        eventOwnerId: string | undefined,
+        session: IAppBrowserSession
+    ): Promise<void>;
 }
 
 class CommentController implements ICommentController {
@@ -45,8 +53,9 @@ class CommentController implements ICommentController {
 
         if(!result.ok) 
         {
-            this.logger.warn(`Comment post failed: ${result.value.message}`);
-            res.status(400).send(`<div class="error">${result.value.message}</div>`);
+            const error = result.value as Error;
+            this.logger.warn(`Comment post failed: ${error.message}`);
+            res.status(400).send(`<div class="error">${error.message}</div>`);
             return;
         }
 
@@ -68,8 +77,9 @@ class CommentController implements ICommentController {
 
         if(!result.ok) 
         {
-            this.logger.warn(`Comment delete failed: ${result.value.message}`);
-            res.status(403).send(`<div class="error">${result.value.message}</div>`);
+            const error = result.value as Error;
+            this.logger.warn(`Comment delete failed: ${error.message}`);
+            res.status(403).send(`<div class="error">${error.message}</div>`);
             return;
         }
 
@@ -88,7 +98,8 @@ class CommentController implements ICommentController {
         
         if(!result.ok)
         {
-            res.status(500).send('<div class="error">Unable to load comments</div>');
+            const error = result.value as Error;
+            res.status(500).send(`<div class="error">Unable to load comments: ${error.message}</div>`);
             return;
         }
         
@@ -100,6 +111,17 @@ class CommentController implements ICommentController {
             eventOwnerId,
             layout: false,
         });
+    }
+
+    // public method that wraps privated renderCommentList
+    async renderCommentsPartial(
+        res: Response,
+        eventId: string,
+        currentUserId: string | undefined,
+        eventOwnerId: string | undefined,
+        session: IAppBrowserSession
+        ): Promise<void> {
+        await this.renderCommentList(res, eventId, currentUserId, eventOwnerId, session);
     }
 }
 
