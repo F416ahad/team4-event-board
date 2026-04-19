@@ -15,3 +15,8 @@ export class EventPastError extends Error {
 export class EventFullError extends Error {
   constructor() { super("Event has reached capacity"); }
 }
+
+// generic failure (unexpected)
+export class RsvpToggleFailedError extends Error {
+  constructor() { super("Failed to toggle RSVP"); }
+}
