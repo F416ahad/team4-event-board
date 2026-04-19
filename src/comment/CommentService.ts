@@ -3,6 +3,14 @@ import type { CommentRepository } from "./CommentRepository";
 import type { Comment, CommentWithPermissions } from "./Comment";
 import type { Event } from "../rsvp/rsvp.ts";
 
+// import custom error types
+import {
+  CommentEmptyError,
+  CommentTooLongError,
+  UnauthorizedDeleteError,
+  CommentNotFoundError,
+} from "./errors";
+
 export class CommentService {
     constructor(
         private readonly commentRepo: CommentRepository,
