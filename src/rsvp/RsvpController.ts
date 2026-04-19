@@ -30,15 +30,11 @@ class RsvpController implements IRsvpController {
 
   // Maps service errors to HTTP status codes
   private mapErrorStatus(error: Error): number {
-    const message = error.message.toLowerCase(); // normalize messages
-
-    if(message.includes("event not found")) return 404;
-    if(message.includes("not allowed")) return 403;
-    if(message.includes("validation")) return 400; // bad input data
-    if(message.includes("full")) return 409; // event capacity reached
-
-    // default fallback for unexpected errors
-    return 500;
+    // error type handling
+    if(error instanceof EventNotFoundError) return 404;   // resource missing
+    if(error instanceof EventCancelledError) return 404;  // permanently gone (cancelled)
+    if(error instanceof EventPastError) return 400;       // invalid request for past event
+    
   }
 
   async toggleRSVP(
