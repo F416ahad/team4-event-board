@@ -59,5 +59,16 @@ describe("CommentService - Sprint 2", () => {
     expect(result.value).toBeInstanceOf(CommentTooLongError);
   });
 
-  
+  test("author can delete own comment", async () => {
+    const postResult = await service.postComment(eventId, "user1", "Alice", "Hello");
+    expect(postResult.ok).toBe(true);
+
+    const comment = postResult.value as Comment;
+    commentId = comment.id;
+
+    const deleteResult = await service.deleteComment(commentId, "user1", "user", undefined);
+    expect(deleteResult.ok).toBe(true);
+  });
+
+
 });
