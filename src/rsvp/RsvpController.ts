@@ -4,6 +4,13 @@ import type { ILoggingService } from "../service/LoggingService";
 import type { IAppBrowserSession } from "../session/AppSession";
 import { Result } from "../lib/result";
 
+// import custom error types
+import {
+  EventNotFoundError,
+  EventCancelledError,
+  EventPastError,
+} from "./errors";
+
 // Controller interface for rsvp
 export interface IRsvpController {
   toggleRSVP(res: Response, eventId: string, userId: string, session: IAppBrowserSession): Promise<void>;
