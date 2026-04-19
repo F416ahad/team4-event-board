@@ -69,70 +69,8 @@
     </div>
   </div>
 
-  <%# JavaScript for RSVP toggle (fetch API) %>
-  <script>
-    // Update attendee count and button text based on current RSVP status
-    async function updateRSVPState() {
-      const eventId = '<%= event.id %>';
-      const btn = document.getElementById('rsvp-btn');
-      const countSpan = document.getElementById('attendee-count');
-      try {
-        const [countRes, statusRes] = await Promise.all([
-          fetch(`/api/events/${eventId}/count-going`),
-          fetch(`/api/events/${eventId}/rsvp/status`)
-        ]);
-        const countData = await countRes.json();
-        countSpan.innerText = countData.count;
-
-        const statusData = await statusRes.json();
-        const status = statusData.status;
-        if (status === 'going') {
-          btn.innerText = 'Cancel RSVP';
-          btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-          btn.classList.add('bg-red-600', 'hover:bg-red-700');
-        } else if (status === 'waitlisted') {
-          btn.innerText = 'Waitlisted';
-          btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-          btn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
-        } else {
-          btn.innerText = 'RSVP';
-          btn.classList.remove('bg-red-600', 'hover:bg-red-700', 'bg-yellow-600', 'hover:bg-yellow-700');
-          btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-        }
-      } catch (err) {
-        console.error(err);
-        countSpan.innerText = '?';
-        btn.innerText = 'RSVP';
-        btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-      }
-    }
-
-    // Handle RSVP toggle on button click
-    document.getElementById('rsvp-btn')?.addEventListener('click', async function() {
-      const eventId = this.dataset.eventId;
-      try {
-        const response = await fetch(`/events/${eventId}/rsvp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (response.ok) {
-          updateRSVPState();
-          // Refresh comments list (optional)
-          document.body.dispatchEvent(new Event('commentChanged'));
-        } else {
-          const errorHtml = await response.text();
-          // Extract error message from HTML div (simple approach)
-          const match = errorHtml.match(/<div class="error">(.*?)<\/div>/);
-          alert(match ? match[1] : 'Failed to toggle RSVP');
-        }
-      } catch (err) {
-        alert('Failed to toggle RSVP');
-      }
-    });
-
-    updateRSVPState();
-  </script>
-<% } else { %>
+   <%# all fetch/JavaScript removed, HTMX now handles everything inline %>
+  <% } else { %>
   <div class="p-6 border border-red-200 rounded-2xl bg-red-50 text-red-800">
     <p>Event not found.</p>
   </div>
