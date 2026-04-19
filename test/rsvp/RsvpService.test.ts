@@ -56,5 +56,18 @@ describe("RsvpService - Sprint 2", () => {
     expect(rsvp.status).toBe("waitlisted");
   });
 
-  
+  test("cancelling a 'going' RSVP", async () => {
+    await service.toggleRSVP(eventId, "user1");
+
+    const cancelResult = await service.toggleRSVP(eventId, "user1");
+    expect(cancelResult.ok).toBe(true);
+
+    const rsvpResult = await repo.getRSVP(eventId, "user1");
+    expect(rsvpResult.ok).toBe(true);
+
+    const rsvp = rsvpResult.value as RSVP;
+    expect(rsvp.status).toBe("cancelled");
+  });
+
+ 
 });
