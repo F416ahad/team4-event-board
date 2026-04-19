@@ -137,7 +137,7 @@ export class RsvpService {
     } 
     catch 
     {
-      return Err(new Error("Failed to toggle RSVP")); // catch unexpected errors
+      return Err(new RsvpToggleFailedError()); // catch unexpected errors
     }
   }
 
