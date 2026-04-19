@@ -20,6 +20,7 @@ export interface IRsvpController {
   getEventOwnerId(eventId: string): Promise<Result<string | null, Error>>;
   getUserRsvpStatus(res: Response, eventId: string, userId: string): Promise<void>;
   getAttendeeCount(res: Response, eventId: string): Promise<void>;
+  getRsvpButtonPartial(res: Response, eventId: string, userId: string): Promise<void>; 
 }
 
 class RsvpController implements IRsvpController {
@@ -122,10 +123,15 @@ class RsvpController implements IRsvpController {
     const event = result.value;
     const rsvpResult = await this.service.getUserRsvp(eventId, currentUserId);
     const userRsvp = rsvpResult.ok ? rsvpResult.value : null;
+
+    const countResult = await this.service.countGoing(eventId); // fetch attendee count
+    const attendeeCount = countResult.ok ? countResult.value : 0;
+
     res.render("events/show", {
       session,
       event,
       userRsvp,
+      attendeeCount,
       error: null,
     });
   }
@@ -193,6 +199,25 @@ class RsvpController implements IRsvpController {
       return;
     }
     res.json({ count: result.value });
+  }
+
+  // New method to serve the RSVP button partial (for initial load and HTMX)
+  async getRsvpButtonPartial(
+    res: Response,
+    eventId: string,
+    userId: string
+  ): Promise<void> {
+    const rsvpResult = await this.service.getUserRsvp(eventId, userId);
+    const countResult = await this.service.countGoing(eventId);
+    const userStatus = rsvpResult.ok ? rsvpResult.value?.status : null;
+    const attendeeCount = countResult.ok ? countResult.value : 0;
+
+    res.render("partials/rsvp-button", {
+      eventId,
+      userStatus,
+      attendeeCount,
+      layout: false,
+    });
   }
 }
 
