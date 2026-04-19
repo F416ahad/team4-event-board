@@ -30,7 +30,7 @@ export class CommentService {
         }
         if(content.length > 500) 
         {
-            return Err(new Error("Comment too long (max 500 characters)"));
+            return Err(new CommentTooLongError());
         }
 
         // checks to see if event actually exists
