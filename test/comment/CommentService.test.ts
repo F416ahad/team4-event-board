@@ -34,5 +34,30 @@ describe("CommentService - Sprint 2", () => {
     eventId = event.id;
   });
 
+  test("posting a valid comment succeeds", async () => {
+    const result = await service.postComment(eventId, "user1", "Alice", "Great event!");
+    expect(result.ok).toBe(true);
+
+    // after checking ok, cast to Comment
+    const comment = result.value as Comment;
+    expect(comment.content).toBe("Great event!");
+  });
+
+  test("empty comment returns CommentEmptyError", async () => {
+    const result = await service.postComment(eventId, "user1", "Alice", "   ");
+    expect(result.ok).toBe(false);
+
+    // result.value is Error – no cast needed, but we check instance
+    expect(result.value).toBeInstanceOf(CommentEmptyError);
+  });
+
+  test("comment too long returns CommentTooLongError", async () => {
+    const longText = "a".repeat(501);
+    const result = await service.postComment(eventId, "user1", "Alice", longText);
+
+    expect(result.ok).toBe(false);
+    expect(result.value).toBeInstanceOf(CommentTooLongError);
+  });
+
   
 });
