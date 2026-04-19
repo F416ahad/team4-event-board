@@ -31,7 +31,7 @@ export class RsvpService {
 
       const event = eventResult.value;
 
-      if(!event) return Err(new Error("Event not found")); // check if event exists
+      if(!event) return Err(new EventNotFoundError()); // check if event exists
 
       // reject if event is cancelled
       if(event.status === "cancelled") 
