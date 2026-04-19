@@ -70,6 +70,14 @@ class RsvpController implements IRsvpController {
     const countResult = await this.service.countGoing(eventId);
     const userStatus = rsvpResult.ok ? rsvpResult.value?.status : null; // if RSVP fetch succeeded, get the user's status (or undefined if missing), otherwise null
     const attendeeCount = countResult.ok ? countResult.value : 0; // if attendee count fetch succeeded, use the count, otherwise default to 0
+
+    // render the button partial (no layout, just the fragment)
+    res.render("partials/rsvp-button", {
+      eventId,
+      userStatus,
+      attendeeCount,
+      layout: false,
+    });
   }
 
    // show all events
