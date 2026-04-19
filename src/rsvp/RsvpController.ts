@@ -34,7 +34,8 @@ class RsvpController implements IRsvpController {
     if(error instanceof EventNotFoundError) return 404;   // resource missing
     if(error instanceof EventCancelledError) return 404;  // permanently gone (cancelled)
     if(error instanceof EventPastError) return 400;       // invalid request for past event
-    
+    if(error.message.toLowerCase().includes("full")) return 409;      // capacity conflict
+    if(error.message.toLowerCase().includes("not allowed")) return 403; // permission issue
   }
 
   async toggleRSVP(
