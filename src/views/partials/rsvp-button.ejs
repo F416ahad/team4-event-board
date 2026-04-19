@@ -1,0 +1,19 @@
+<%# 
+  Partial: RSVP button and attendee count
+  Rendered by RsvpController after toggling (HTMX)
+  Expects: eventId, userStatus, attendeeCount
+%>
+<div id="rsvp-status">
+  <button hx-post="/events/<%= eventId %>/rsvp"
+          hx-target="#rsvp-status"
+          hx-swap="outerHTML"
+          class="px-6 py-2.5 rounded-lg font-medium transition-colors 
+                 <%= userStatus === 'going' ? 'bg-red-600 hover:bg-red-700' : 
+                    userStatus === 'waitlisted' ? 'bg-yellow-600 hover:bg-yellow-700' : 
+                    'bg-blue-600 hover:bg-blue-700' %>">
+    <% if (userStatus === 'going') { %>Cancel RSVP<% 
+       } else if (userStatus === 'waitlisted') { %>Waitlisted<% 
+       } else { %>RSVP<% } %>
+  </button>
+  <p class="text-sm text-slate-500 mt-2">Attendees going: <span><%= attendeeCount %></span></p>
+</div>
