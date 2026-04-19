@@ -70,5 +70,37 @@ describe("CommentService - Sprint 2", () => {
     expect(deleteResult.ok).toBe(true);
   });
 
+  test("event owner can delete any comment on their event", async () => {
+    const postResult = await service.postComment(eventId, "user2", "Bob", "Nice!");
+    expect(postResult.ok).toBe(true);
 
+    const comment = postResult.value as Comment;
+    commentId = comment.id;
+
+    const deleteResult = await service.deleteComment(commentId, "owner1", "user", "owner1");
+    expect(deleteResult.ok).toBe(true);
+  });
+
+  test("admin can delete any comment", async () => {
+    const postResult = await service.postComment(eventId, "user2", "Bob", "Nice!");
+    expect(postResult.ok).toBe(true);
+
+    const comment = postResult.value as Comment;
+    commentId = comment.id;
+
+    const deleteResult = await service.deleteComment(commentId, "admin1", "admin", undefined);
+    expect(deleteResult.ok).toBe(true);
+  });
+
+  test("unauthorized user cannot delete comment", async () => {
+    const postResult = await service.postComment(eventId, "user2", "Bob", "Nice!");
+    expect(postResult.ok).toBe(true);
+    
+    const comment = postResult.value as Comment;
+    commentId = comment.id;
+
+    const deleteResult = await service.deleteComment(commentId, "user3", "user", undefined);
+    expect(deleteResult.ok).toBe(false);
+    expect(deleteResult.value).toBeInstanceOf(UnauthorizedDeleteError);
+  });
 });
