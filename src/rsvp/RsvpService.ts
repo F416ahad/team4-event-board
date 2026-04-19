@@ -49,7 +49,7 @@ export class RsvpService {
       // 2026-04-16T22:07:52.000Z to 2026-04-16 (10 is exclusive)
       if(eventDate.toISOString().slice(0,10) < today.toISOString().slice(0,10)) 
       {
-        return Err(new Error("Cannot RSVP to a past event"));
+        return Err(new EventPastError());
       }
 
       // Get rsvp for user
