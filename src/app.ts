@@ -338,6 +338,26 @@ class ExpressApp implements IApp {
       }),
     );
 
+    this.app.get(
+      "/events/:eventId/rsvp/partial",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return;
+
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+        
+        const eventId = this.getParam(req.params.eventId);
+        await this.rsvpController.getRsvpButtonPartial(res, eventId, user.userId);
+      })
+    );
+
+
     // toggle rsvp 
     this.app.post(
       "/events/:eventId/rsvp",
