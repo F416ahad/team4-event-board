@@ -7,3 +7,7 @@ export class EventNotFoundError extends Error {
 export class EventCancelledError extends Error {
   constructor() { super("Cannot RSVP to a cancelled event"); }
 }
+
+export class EventPastError extends Error {
+  constructor() { super("Cannot RSVP to a past event"); }
+}
