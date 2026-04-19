@@ -104,7 +104,7 @@ export class CommentService {
 
         const comment = commentResult.value;
 
-        if(!comment) return Err(new Error("Comment not found"));
+        if(!comment) return Err(new CommentNotFoundError());
 
         const canDelete = this.canDeleteComment(comment, currentUserId, eventOwnerId, currentUserRole);
 
