@@ -65,10 +65,11 @@ class RsvpController implements IRsvpController {
       `RSVP toggled for user=${userId} event=${eventId}` // successful login
     );
 
-    // send success response status code
-    res.status(200).json({
-      success: true,
-    });
+    // after successful toggle, get updated data to render HTMX partial
+    const rsvpResult = await this.service.getUserRsvp(eventId, userId);
+    const countResult = await this.service.countGoing(eventId);
+    const userStatus = rsvpResult.ok ? rsvpResult.value?.status : null; // if RSVP fetch succeeded, get the user's status (or undefined if missing), otherwise null
+    const attendeeCount = countResult.ok ? countResult.value : 0; // if attendee count fetch succeeded, use the count, otherwise default to 0
   }
 
    // show all events
