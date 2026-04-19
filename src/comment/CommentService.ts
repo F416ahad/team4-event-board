@@ -9,6 +9,7 @@ import {
   CommentTooLongError,
   UnauthorizedDeleteError,
   CommentNotFoundError,
+  CommentAlreadyDeletedError,
 } from "./errors";
 
 // import custom errors for rsvp
@@ -121,7 +122,7 @@ export class CommentService {
             return Err(deleteResult.value as Error);
         }
 
-        if(!deleteResult.value) return Err(new Error("Comment already deleted"));
+        if(!deleteResult.value) return Err(new CommentAlreadyDeletedError());
 
         return Ok(undefined);
     }

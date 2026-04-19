@@ -17,6 +17,6 @@ export class CommentNotFoundError extends Error {
   constructor() { super("Comment not found"); }
 }
 
-export class CommentAlreadyDeleted extends Error {
+export class CommentAlreadyDeletedError extends Error {
   constructor() { super("Comment already deleted"); }
 }
