@@ -12,3 +12,7 @@ export class CommentTooLongError extends Error {
 export class UnauthorizedDeleteError extends Error {
   constructor() { super("You do not have permission to delete this comment"); }
 }
+
+export class CommentNotFoundError extends Error {
+  constructor() { super("Comment not found"); }
+}
