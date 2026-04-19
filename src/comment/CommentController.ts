@@ -3,6 +3,14 @@ import type { CommentService } from "./CommentService";
 import type { ILoggingService } from "../service/LoggingService";
 import type { IAppBrowserSession } from "../session/AppSession";
 
+// import custom error types 
+import {
+  CommentEmptyError,
+  CommentTooLongError,
+  UnauthorizedDeleteError,
+  CommentNotFoundError,
+  CommentAlreadyDeletedError
+} from "./errors";
 export interface ICommentController {
     postComment(
         res: Response,
