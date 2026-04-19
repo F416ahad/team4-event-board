@@ -11,6 +11,11 @@ import {
   CommentNotFoundError,
 } from "./errors";
 
+// import custom errors for rsvp
+import {
+  EventNotFoundError,
+} from "../rsvp/errors";
+
 export class CommentService {
     constructor(
         private readonly commentRepo: CommentRepository,
@@ -41,7 +46,7 @@ export class CommentService {
             return Err(eventResult.value as Error);
         }
 
-        if(!eventResult.value) return Err(new Error("Event not found"));
+        if(!eventResult.value) return Err(new EventNotFoundError());
 
         const commentData = {
             eventId,
