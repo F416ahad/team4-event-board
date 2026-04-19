@@ -36,7 +36,7 @@ export class RsvpService {
       // reject if event is cancelled
       if(event.status === "cancelled") 
       {
-        return Err(new Error("Cannot RSVP to a cancelled event"));
+        return Err(new EventCancelledError());
     
       }
 
