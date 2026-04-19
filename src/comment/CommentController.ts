@@ -96,8 +96,15 @@ class CommentController implements ICommentController {
         if(!result.ok) 
         {
             const error = result.value as Error;
+
+            let status = 500; // default for unexpected errors
+            
+            if(error instanceof CommentNotFoundError) status = 404; // not found
+            else if(error instanceof UnauthorizedDeleteError) status = 403; // forbidden
+            // CommentEmptyError / CommentTooLongError are not important for delete, but if they appear, they would be 400
+
             this.logger.warn(`Comment delete failed: ${error.message}`);
-            res.status(403).send(`<div class="error">${error.message}</div>`);
+            res.status(status).send(`<div class="error">${error.message}</div>`);
             return;
         }
 
