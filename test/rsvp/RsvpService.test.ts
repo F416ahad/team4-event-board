@@ -103,5 +103,30 @@ describe("RsvpService - Sprint 2", () => {
     expect(rsvp.status).toBe("waitlisted");
   });
 
- 
+  test("rejects RSVP to cancelled event", async () => {
+    const eventResult = await repo.getEvent(eventId);
+    expect(eventResult.ok).toBe(true);
+
+    const event = eventResult.value as Event;
+    event.status = "cancelled";
+
+    const result = await service.toggleRSVP(eventId, "user1");
+    expect(result.ok).toBe(false);
+
+    // error type is already narrow enough – no cast needed
+    expect(result.value).toBeInstanceOf(EventCancelledError);
+  });
+
+  test("rejects RSVP to past event", async () => {
+    const eventResult = await repo.getEvent(eventId);
+    expect(eventResult.ok).toBe(true);
+
+    const event = eventResult.value as Event;
+    event.date = "2020-01-01T00:00:00Z";
+
+    const result = await service.toggleRSVP(eventId, "user1");
+    expect(result.ok).toBe(false);
+    
+    expect(result.value).toBeInstanceOf(EventPastError);
+  });
 });
