@@ -1,6 +1,13 @@
 import { Ok, Err, type Result } from "../lib/result";
 import type { RSVPRepository } from "./RsvpRepository";
 import type { RSVPStatus, Event, RSVP } from "./rsvp.ts";
+// import custom errors
+import {
+  EventNotFoundError,
+  EventCancelledError,
+  EventPastError,
+  RsvpToggleFailedError,
+} from "./errors";
 
 export class RsvpService {
   constructor(private readonly repo: RSVPRepository) {}
