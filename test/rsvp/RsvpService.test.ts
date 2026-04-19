@@ -69,5 +69,39 @@ describe("RsvpService - Sprint 2", () => {
     expect(rsvp.status).toBe("cancelled");
   });
 
+  test("reactivating a cancelled RSVP when space available", async () => {
+    await service.toggleRSVP(eventId, "user1");
+    await service.toggleRSVP(eventId, "user1"); // cancel
+
+    const reactivate = await service.toggleRSVP(eventId, "user1");
+    expect(reactivate.ok).toBe(true);
+
+    const rsvpResult = await repo.getRSVP(eventId, "user1");
+    expect(rsvpResult.ok).toBe(true);
+
+    const rsvp = rsvpResult.value as RSVP;
+    expect(rsvp.status).toBe("going");
+  });
+
+  test("waitlisted user stays waitlisted if still full", async () => {
+    const eventResult = await repo.getEvent(eventId);
+    expect(eventResult.ok).toBe(true);
+
+    const event = eventResult.value as Event;
+    event.capacity = 1;
+
+    await service.toggleRSVP(eventId, "user1");
+    await service.toggleRSVP(eventId, "user2"); // becomes waitlisted
+
+    const result = await service.toggleRSVP(eventId, "user2");
+    expect(result.ok).toBe(true);
+
+    const rsvpResult = await repo.getRSVP(eventId, "user2");
+    expect(rsvpResult.ok).toBe(true);
+
+    const rsvp = rsvpResult.value as RSVP;
+    expect(rsvp.status).toBe("waitlisted");
+  });
+
  
 });
