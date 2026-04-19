@@ -11,3 +11,7 @@ export class EventCancelledError extends Error {
 export class EventPastError extends Error {
   constructor() { super("Cannot RSVP to a past event"); }
 }
+
+export class EventFullError extends Error {
+  constructor() { super("Event has reached capacity"); }
+}
