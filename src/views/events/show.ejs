@@ -34,15 +34,21 @@
         </div>
         <div>
           <p class="text-sm text-slate-500">Attendees going</p>
+          <%# HTMX will update this container %>
           <p class="font-medium text-lg" id="attendee-count">Loading...</p>
         </div>
       </div>
 
-      <%# RSVP Toggle Button %>
-      <div class="mt-6 pt-4 border-t border-slate-200">
-        <button id="rsvp-btn" data-event-id="<%= event.id %>" class="rsvp-btn px-6 py-2.5 rounded-lg font-medium transition-colors">
+      <%# RSVP Toggle Button (HTMX) %>
+      <div class="mt-6 pt-4 border-t border-slate-200" id="rsvp-status">
+        <button hx-post="/events/<%= event.id %>/rsvp"
+                hx-target="#rsvp-status"
+                hx-swap="outerHTML"
+                hx-headers='{"X-Requested-With": "XMLHttpRequest"}'
+                class="px-6 py-2.5 rounded-lg font-medium transition-colors">
           Loading...
         </button>
+        <p class="text-sm text-slate-500 mt-2">Attendees going: <span id="attendee-count-loading">Loading...</span></p>
       </div>
     </div>
 
