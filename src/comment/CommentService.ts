@@ -110,7 +110,7 @@ export class CommentService {
 
         if(!canDelete) 
         {
-            return Err(new Error("You do not have permission to delete this comment"));
+            return Err(new UnauthorizedDeleteError());
         }
 
         const deleteResult = await this.commentRepo.deleteComment(commentId);
