@@ -23,6 +23,8 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
+  const rsvpService = CreateRsvpService(prismaClient);
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
   // Events wiring
   const eventRepo = new InMemoryEventRepository();

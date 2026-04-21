@@ -19,7 +19,7 @@
     "@prisma/adapter-better-sqlite3": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "better-sqlite3": "^11.7.2",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.2",
     "ejs": "^4.0.1",
     "express": "^5.2.1",
     "express-ejs-layouts": "^2.5.1",

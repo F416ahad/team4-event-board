@@ -229,7 +229,6 @@ TypeScript
 toggleSave(userId: string, eventId: string): Promise<Result<string, Error>>
 Parameters:
 
-userId — The ID of the authenticated user.
 
 eventId — The ID of the event to save or remove.
 
