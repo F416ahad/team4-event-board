@@ -151,9 +151,14 @@ export class RsvpService {
     return await this.repo.getRSVP(eventId, userId);
   }
 
+<<<<<<< task/event-comments-structure
   // create event (needs owner id)
   async createEvent(title: string, createdByUserId: string, capacity?: number,): Promise<Result<Event, Error>> {
     const result = await this.repo.createEvent(title, createdByUserId);
+=======
+  async createEvent(title: string, capacity?: number): Promise<Result<Event, Error>> {
+    const result = await this.repo.createEvent(title);
+>>>>>>> dev
 
     if(!result.ok) return result;
 
@@ -166,6 +171,7 @@ export class RsvpService {
 
     return Ok(event);
   }
+<<<<<<< task/event-comments-structure
 
   // count how many "going" for an event
   async countGoing(eventId: string): Promise<Result<number, Error>> 
@@ -192,4 +198,6 @@ export class RsvpService {
 
         return Ok(ownerId);
     }
+=======
+>>>>>>> dev
 }

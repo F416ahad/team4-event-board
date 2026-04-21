@@ -1,3 +1,4 @@
+import "dotenv/config";
 import path from "node:path";
 import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
@@ -17,10 +18,10 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
+import { IAttendeeController } from "./events/AttendeeController";
+import { IArchiveController } from "./events/ArchiveController";
 
-// rsvp and comment controller imports
-import { IRsvpController } from "./rsvp/RsvpController";
-import { ICommentController } from "./comment/CommentController";
+import { IEventController } from "./event_dash/EventController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -39,9 +40,11 @@ class ExpressApp implements IApp {
 
   constructor(
     private readonly authController: IAuthController,
+    private readonly archiveController: IArchiveController,
+    private readonly attendeeController: IAttendeeController,
+    private readonly rsvpController: IRsvpController,
     private readonly logger: ILoggingService,
-    private readonly rsvpController: IRsvpController,   // rsvpController constructor
-    private readonly commentController: ICommentController, // commentController constructor
+    private readonly eventController: IEventController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -262,9 +265,22 @@ class ExpressApp implements IApp {
 
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null });
+        const user = getAuthenticatedUser(sessionStore(req));
+        let dashboardData = null;
+        if (user && (user.role === "admin" || user.role === "staff")) {
+          const result = await this.eventController.getDashboardData(
+            user.userId,
+            user.role
+          );
+          if (result.ok){
+            dashboardData = result;
+          }
+        }
+        res.render("home", { session: browserSession, pageError: null, dashboardData });
       }),
     );
+
+    // ── RSVP routes ───────────────────────────────────────────────────
 
     // list all events (authenticated users)
     this.app.get(
@@ -340,16 +356,9 @@ class ExpressApp implements IApp {
 
     // toggle rsvp 
     this.app.post(
-      "/events/:eventId/rsvp",
+      "/events/:eventId/rsvp/cancel",
       asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return; // make sure user is logged in
-
-        const store = sessionStore(req); // get session store
-        const user = getAuthenticatedUser(store); // get authenticated user
-
-        if(!user) 
-        {
-          res.status(401).json({ success: false, error: "Unauthorized" }); // Check if user is authenticated
+        if (!this.requireAuthenticated(req, res)) {
           return;
         }
 
@@ -489,6 +498,26 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // ── Feature 11: Past Event Archive ───────────────────────────────
+
+    this.app.get(
+      "/archive",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        await this.archiveController.getArchive(req, res);
+      }),
+    );
+
+    // ── Feature 12: Attendee List ────────────────────────────────────
+
+    this.app.get(
+      "/events/:eventId/attendees",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        await this.attendeeController.getAttendees(req, res);
+      }),
+    );
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -508,9 +537,13 @@ class ExpressApp implements IApp {
 
 export function CreateApp(
   authController: IAuthController,
+  archiveController: IArchiveController,
+  attendeeController: IAttendeeController,
   logger: ILoggingService,
-  rsvpController: IRsvpController,
-  commentController: ICommentController,
 ): IApp {
-  return new ExpressApp(authController, logger, rsvpController, commentController);
+  return new ExpressApp(authController, archiveController, attendeeController, logger);
+}
+authController: IAuthController, logger: ILoggingService, eventController: IEventController,
+): IApp {
+  return new ExpressApp(authController, logger, eventController);
 }
