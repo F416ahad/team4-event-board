@@ -255,4 +255,41 @@ describe('Feature 4 – RSVP Toggle: service layer', () => {
     });
   });
 
- 
+  // ── Edge cases ─────────────────────────────────────────────────────────────
+
+  describe('edge cases', () => {
+    it('waitlisted user becomes going after the going user cancels', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService, 'Capacity 1 Event', 'owner-1', 1);
+
+      await rsvpService.toggleRSVP(event.id, 'user-1');  // going
+      await rsvpService.toggleRSVP(event.id, 'user-2');  // waitlisted
+      await rsvpService.toggleRSVP(event.id, 'user-1');  // user-1 cancels -> spot opens
+      await rsvpService.toggleRSVP(event.id, 'user-2');  // user-2 retoggle -> should be going
+
+      const rsvpResult = await rsvpService.getUserRsvp(event.id, 'user-2');
+      expect((rsvpResult.value as RSVP).status).toBe('going');
+    });
+
+    it('an event dated today is NOT rejected as past', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+      (event as any).date = new Date().toISOString();  // exactly today
+
+      const result = await rsvpService.toggleRSVP(event.id, 'user-1');
+      expect(result.ok).toBe(true);
+    });
+
+    it('unlimited capacity event accepts many attendees', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);  // no capacity arg -> unlimited
+
+      for (let i = 0; i < 10; i++) {
+        const r = await rsvpService.toggleRSVP(event.id, `user-${i}`);
+        expect(r.ok).toBe(true);
+      }
+      const count = await rsvpService.countGoing(event.id);
+      expect(count.value).toBe(10);
+    });
+  });
+});
