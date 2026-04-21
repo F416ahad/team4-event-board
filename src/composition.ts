@@ -13,9 +13,6 @@ import { CreateArchiveController } from "./events/ArchiveController";
 import { CreateAttendeeService } from "./events/AttendeeService";
 import { CreateAttendeeController } from "./events/AttendeeController";
 import { CreateInMemoryRsvpRepository } from "./events/InMemoryRsvpRepository";
-import { CreateEventService, type IEventService } from "./event_dash/EventService";
-import { CreateEventController } from "./event_dash/EventController";
-import { CreateInMemoryEventRepository } from "./event_dash/InMemoryEventRepository";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
@@ -94,11 +91,4 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   setInterval(() => archiveService.transitionExpired(), 60_000);
 
   return CreateApp(authController, archiveController, attendeeController, resolvedLogger);
-}
-  // Event management wiring
-  const events = CreateInMemoryEventRepository();
-  const eventService = CreateEventService(events);
-  const eventController = CreateEventController(eventService);
-
-  return CreateApp(authController, resolvedLogger, eventController);
 }

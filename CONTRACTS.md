@@ -193,9 +193,72 @@ type EventCategory = "academic" | "social" | "sports" | "arts" | "tech" | "other
 ### `UserRole`
 ```ts
 type UserRole = "admin" | "staff" | "user"
+
+
+Feature 10 — Event Search
+EventSearchService.searchEvents(query)
+Searches published, upcoming events by title, description, or location.
+
+TypeScript
+
+searchEvents(query: string): Promise<Result<Event[], Error>>
+Parameters:
+
+query — The search string. If empty or whitespace, the service returns all published upcoming events.
+
+Success:
+
+Returns Ok(events) where events is an array of Event objects matching the search criteria.
+
+Rule: Only events with status === "published" AND date >= now are included.
+
+Rule: Search is case-insensitive and matches against title, description, or location.
+
+Errors:
+
+"SearchError": Repository or filtering logic threw an unexpected error.
 ```
 
 
+Feature 14 — Save for Later
+SavedEventService.toggleSave(userId, eventId)
+Toggles the saved status of an event for a specific user.
+
+TypeScript
+
+toggleSave(userId: string, eventId: string): Promise<Result<string, Error>>
+Parameters:
+
+
+eventId — The ID of the event to save or remove.
+
+Success:
+
+Returns Ok(message) where message is either "Event saved successfully" or "Event removed from saved list".
+
+Behavior: If the event is already saved, it is removed. If it is not saved, it is added to the user's list.
+
+Errors:
+
+"SaveError": Repository threw an unexpected error.
+
+SavedEventService.getSavedEventsForUser(userId)
+Retrieves all event IDs saved by a specific user.
+
+TypeScript
+
+getSavedEventsForUser(userId: string): Promise<Result<string[], Error>>
+Parameters:
+
+userId — The ID of the user whose saved list is being retrieved.
+
+Success:
+
+Returns Ok(eventIds) where eventIds is an array of event ID strings.
+
+Errors:
+
+"SaveError": Repository threw an unexpected error.
 
 
 
