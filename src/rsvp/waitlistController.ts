@@ -83,7 +83,7 @@ class RsvpController implements IRsvpController {
         currentUserRsvp,
         session: req.session
     });
-}
+}}
 
 export function CreateRsvpController(
   rsvpService: IRsvpService,
