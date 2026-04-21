@@ -13,9 +13,6 @@ import { CreateArchiveController } from "./events/ArchiveController";
 import { CreateAttendeeService } from "./events/AttendeeService";
 import { CreateAttendeeController } from "./events/AttendeeController";
 import { CreateInMemoryRsvpRepository } from "./events/InMemoryRsvpRepository";
-import { CreateEventService, type IEventService } from "./event_dash/EventService";
-import { CreateEventController } from "./event_dash/EventController";
-import { CreateInMemoryEventRepository } from "./event_dash/InMemoryEventRepository";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
@@ -26,8 +23,6 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
-  const rsvpService = CreateRsvpService(prismaClient);
-  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
   // Events wiring
   const eventRepo = new InMemoryEventRepository();
@@ -77,8 +72,6 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     },
   ]);
 
-  // Seed RSVPs — userId 'organizer-1' matches the demo admin user
-  // We need an eventId to seed RSVPs, so grab the first seeded event
   const seededEvents = eventRepo.getAll();
   if (seededEvents.length > 0) {
     const firstEventId = seededEvents[0].id;
@@ -94,11 +87,4 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   setInterval(() => archiveService.transitionExpired(), 60_000);
 
   return CreateApp(authController, archiveController, attendeeController, resolvedLogger);
-}
-  // Event management wiring
-  const events = CreateInMemoryEventRepository();
-  const eventService = CreateEventService(events);
-  const eventController = CreateEventController(eventService);
-
-  return CreateApp(authController, resolvedLogger, eventController);
 }
