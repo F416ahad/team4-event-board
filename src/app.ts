@@ -21,6 +21,7 @@ import { ILoggingService } from "./service/LoggingService";
 import { IAttendeeController } from "./events/AttendeeController";
 import { IArchiveController } from "./events/ArchiveController";
 
+import { IEventController } from "./event_dash/EventController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -41,6 +42,7 @@ class ExpressApp implements IApp {
     private readonly authController: IAuthController,
     private readonly archiveController: IArchiveController,
     private readonly attendeeController: IAttendeeController,
+    private readonly rsvpController: IRsvpController,
     private readonly logger: ILoggingService,
     private readonly eventController: IEventController,
   ) {
@@ -516,26 +518,6 @@ class ExpressApp implements IApp {
       }),
     );
 
-    // ── Feature 11: Past Event Archive ───────────────────────────────
-
-    this.app.get(
-      "/archive",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return;
-        await this.archiveController.getArchive(req, res);
-      }),
-    );
-
-    // ── Feature 12: Attendee List ────────────────────────────────────
-
-    this.app.get(
-      "/events/:eventId/attendees",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return;
-        await this.attendeeController.getAttendees(req, res);
-      }),
-    );
-
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -560,4 +542,8 @@ export function CreateApp(
   logger: ILoggingService,
 ): IApp {
   return new ExpressApp(authController, archiveController, attendeeController, logger);
+}
+authController: IAuthController, logger: ILoggingService, eventController: IEventController,
+): IApp {
+  return new ExpressApp(authController, logger, eventController);
 }
