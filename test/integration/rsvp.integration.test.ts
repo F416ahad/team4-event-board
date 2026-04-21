@@ -152,3 +152,62 @@ describe('Feature 4 – RSVP Toggle: HTTP layer', () => {
   });
 });
 
+// ─── Service-layer tests ─────────────────────────────────────────────────────
+//
+// these bypass HTTP entirely and test the full Result-pattern business logic
+
+describe('Feature 4 – RSVP Toggle: service layer', () => {
+
+  // ── Happy path ─────────────────────────────────────────────────────────────
+
+  describe('toggle happy path', () => {
+    it('first toggle → status is going', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await rsvpService.toggleRSVP(event.id, 'user-1');
+      expect(result.ok).toBe(true);
+
+      const rsvpResult = await rsvpService.getUserRsvp(event.id, 'user-1');
+      expect(rsvpResult.ok).toBe(true);
+      expect((rsvpResult.value as RSVP).status).toBe('going');
+    });
+
+    it('second toggle cancels an active RSVP', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      await rsvpService.toggleRSVP(event.id, 'user-1');  //  going
+      await rsvpService.toggleRSVP(event.id, 'user-1');  //  cancelled
+
+      const rsvpResult = await rsvpService.getUserRsvp(event.id, 'user-1');
+      expect((rsvpResult.value as RSVP).status).toBe('cancelled');
+    });
+
+    it('third toggle reactivates a cancelled RSVP to going', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      await rsvpService.toggleRSVP(event.id, 'user-1');  // going
+      await rsvpService.toggleRSVP(event.id, 'user-1');  // cancelled
+      await rsvpService.toggleRSVP(event.id, 'user-1');  // going again
+
+      const rsvpResult = await rsvpService.getUserRsvp(event.id, 'user-1');
+      expect((rsvpResult.value as RSVP).status).toBe('going');
+    });
+
+    it('attendee count increments on RSVP and decrements on cancel', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      await rsvpService.toggleRSVP(event.id, 'user-1');
+      const after = await rsvpService.countGoing(event.id);
+      expect(after.value).toBe(1);
+
+      await rsvpService.toggleRSVP(event.id, 'user-1');  // cancel
+      const afterCancel = await rsvpService.countGoing(event.id);
+      expect(afterCancel.value).toBe(0);
+    });
+  });
+
+  
