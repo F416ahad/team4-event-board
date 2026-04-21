@@ -13,6 +13,7 @@ export interface IRsvpController {
     eventId: string,
     userId: string
   ): Promise<void>;
+  showEvent(req: Request, res: Response, eventId: string, userId: string): Promise<void>;
 }
 
 class RsvpController implements IRsvpController {
@@ -44,11 +45,36 @@ class RsvpController implements IRsvpController {
     this.logger.info(`RSVP cancelled for user ${userId}`);
     res.redirect(`/events/${eventId}`);
   }
+
+  async showEvent(req: Request, res: Response, eventId: string, userId: string) {
+    const result = await this.rsvpService.getEventWithRsvps(eventId);
+    if (!result.ok) {
+        this.logger.warn(`Failed to fetch event with RSVPs: ${result.value.message}`);
+        res.status(500).render("partials/error", {
+            message: result.value.message,
+            layout: false,
+        });
+        return;
+    }
+    if (!result.value) {
+        res.status(404).render("partials/error", {
+            message: "Event not found",
+            layout: false,
+        });
+        return;
+    }
+    const event = result.value;
+    const currentUserRsvp = event.rsvps.find((r) => r.memberId === userId) ?? null;
+    res.render("events/", {
+        event,
+        currentUserRsvp,
+        session: req.session
+    });
 }
 
 export function CreateRsvpController(
   rsvpService: IRsvpService,
-  logger: ILoggingService
+  logger: ILoggingService,
 ): IRsvpController {
-  return new RsvpController(rsvpService, logger);
+  return new RsvpController(rsvpService, logger );
 }
