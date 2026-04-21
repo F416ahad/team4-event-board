@@ -87,11 +87,68 @@ async function seedFutureEvent(
 
   if(!result.ok) throw new Error('seedFutureEvent: createEvent failed');
   const event = result.value as Event;
-
+  
   // Push the date 30 days forward so the EventPastError guard never fires
   const future = new Date();
   future.setDate(future.getDate() + 30);
   (event as any).date = future.toISOString();
   return event;
 }
+
+// ─── HTTP-layer tests ────────────────────────────────────────────────────────
+//
+// In NODE_ENV=test, requireAuthenticated() returns true.
+// The inner `if (!user)` guard inside the RSVP toggle route checks
+// getAuthenticatedUser() which returns undefined without a real cookie,
+// producing a 401.  We verify this is a clean 401 (not a 500 crash).
+// For domain-error paths we test directly at the service layer below.
+
+describe('Feature 4 – RSVP Toggle: HTTP layer', () => {
+
+  it('POST /events/:eventId/rsvp without a session -> 401 (not a 500 crash)', async () => {
+    const { expressApp, rsvpService } = makeTestBed();
+    const event = await seedFutureEvent(rsvpService);
+
+    const res = await request(expressApp)
+      .post(`/events/${event.id}/rsvp`)
+      .set('HX-Request', 'true');
+
+    // 401 = auth guard fired correctly; anything else is a bug
+    expect(res.status).toBe(401);
+  });
+
+  it('POST /events/:eventId/rsvp for a non-existent event -> 401 (auth guard before domain logic)', async () => {
+    const { expressApp } = makeTestBed();
+
+    const res = await request(expressApp)
+      .post('/events/does-not-exist/rsvp')
+      .set('HX-Request', 'true');
+
+    // Still 401 because the user guard fires first
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /api/events/:eventId/rsvp/status without a session -> 401', async () => {
+    const { expressApp, rsvpService } = makeTestBed();
+    const event = await seedFutureEvent(rsvpService);
+
+    const res = await request(expressApp)
+      .get(`/api/events/${event.id}/rsvp/status`);
+
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /api/events/:eventId/count-going without a session -> 200 JSON (no user guard on this route)', async () => {
+    const { expressApp, rsvpService } = makeTestBed();
+    const event = await seedFutureEvent(rsvpService);
+
+    // this route calls requireAuthenticated (returns true in test mode) then
+    // immediately calls the controller — there is no inner user guard.
+    const res = await request(expressApp)
+      .get(`/api/events/${event.id}/count-going`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('count', 0);
+  });
+});
 
