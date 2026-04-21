@@ -296,6 +296,21 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // HIGHLIGHT
+    // Show create event form (admin/staff only)
+    this.app.get(
+      "/events/new",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can create events")) {
+          return;
+        }
+        const store = sessionStore(req);
+        const browserSession = recordPageView(store);
+        res.render("events/new", { session: browserSession, error: null });
+      })
+    );
+
+    // HIGHLIGHT
     // Show single event detail with rsvp button
     this.app.get(
       "/events/:eventId",
@@ -303,7 +318,7 @@ class ExpressApp implements IApp {
         if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
 
         const store = sessionStore(req); // get session store from request
-        const browserSession = recordPageView(store); // record page view for session tracking
+        const browserSession = recordPageView(store); // record page view for session tracking (increments counter, updates last activity)
         const user = getAuthenticatedUser(store); // get current authenticated user
         const eventId = this.getParam(req.params.eventId); // get eventId from URL
  
@@ -352,6 +367,59 @@ class ExpressApp implements IApp {
 
         await this.rsvpController.toggleRSVP(res, eventId, user.userId, browserSession); // toggle rsvp status
       }),
+    );
+    
+      // ── API endpoints for RSVP frontend ─────────────────────────────
+
+    // Get current user's RSVP status
+    this.app.get(
+      "/api/events/:eventId/rsvp/status",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+
+        const eventId = this.getParam(req.params.eventId);
+        await this.rsvpController.getUserRsvpStatus(res, eventId, user.userId);
+      })
+    );
+
+    // Get attendee count
+    this.app.get(
+      "/api/events/:eventId/count-going",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        const eventId = this.getParam(req.params.eventId);
+        await this.rsvpController.getAttendeeCount(res, eventId);
+      })
+    );
+
+// ── Comment partial route (for HTMX) ───────────────────────────
+
+    this.app.get(
+      "/events/:eventId/comments/partial",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+        const eventId = this.getParam(req.params.eventId);
+        const ownerIdResult = await this.rsvpController.getEventOwnerId(eventId);
+        const eventOwnerId = ownerIdResult.ok ? (ownerIdResult.value ?? undefined) : undefined;
+        const browserSession = touchAppSession(store);
+        await this.commentController.renderCommentsPartial(
+          res,
+          eventId,
+          user?.userId,
+          eventOwnerId,
+          browserSession
+        );
+      })
     );
     
     // ── Comment routes ───────────────────────────────────────────────
