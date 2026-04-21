@@ -2,11 +2,30 @@ import "dotenv/config";
 import { Err, Ok, type Result } from "../lib/result";
 import type { PrismaClient, Prisma } from "@prisma/client";
 
-interface IRsvpService {
+export type EventWithRsvps = {
+  id: string;
+  title: string;
+  date: Date;
+  category: string;
+  capacity: number;
+  rsvps: {
+    id: string;
+    status: string;
+    waitlistPosition: number | null;
+    memberId: string;
+    member: { displayName: string };
+  }[];
+};
+
+export interface IRsvpService {
   cancelRsvpAndPromote(
     eventId: string,
     memberId: string
   ): Promise<Result<void, { name: "UnexpectedDependencyError"; message: string }>>;
+
+  getEventWithRsvps(
+    eventId: string
+  ): Promise<Result<EventWithRsvps | null, { name: "UnexpectedDependencyError"; message: string }>>;
 }
 
 class RsvpService implements IRsvpService {
@@ -110,4 +129,26 @@ class RsvpService implements IRsvpService {
       });
     }
   }
-}
+  async getEventWithRsvps(
+    eventId: string
+  ): Promise<Result<EventWithRsvps | null, { name: "UnexpectedDependencyError"; message: string }>> {
+    try {
+      const event = await this.prisma.event.findUnique({
+        where: { id: eventId },
+        include: {
+          rsvps: {
+            where: {status: { not: "CANCELLED" } },
+            orderBy: { createdAt: "asc" },
+            include: { member: { select: { displayName: true } } },
+          }
+        }
+      });
+      return Ok(event);
+    } catch (e) {
+      return Err({
+        name: "UnexpectedDependencyError" as const,
+        message:
+          e instanceof Error ? e.message : "Failed to fetch event with RSVPs",
+      });
+    }
+  }}
