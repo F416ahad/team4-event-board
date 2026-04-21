@@ -1,8 +1,10 @@
 import express from 'express';
-const router = express.Router();
+// @ts-ignore
 import * as eventController from '../controllers/eventController.js';
 
+const router = express.Router();
 
-router.get('/:id', eventController.showEventDetail);
+router.get('/', eventController.listEvents);
+router.get('/:id', eventController.showEvent);
 
 export default router;

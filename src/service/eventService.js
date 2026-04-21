@@ -1,32 +1,43 @@
 import * as eventRepo from '../repositories/InMemoryEventRepository.js';
+import * as repo from '../repositories/eventRepository.js';
+import { EventNotFoundError, UnauthorizedError } from '../core/errors.js';
 
-/**
- * service to handle the logic for viewing event details
- * 
- * * @param {string} eventId 
- * @param {Object} currentUser 
- * @returns {Object} result pattern: { ok: boolean, value?: Object, error?: string }
- */
-export const getEventDetail = async (eventId, currentUser) => {
-  const event = await eventRepo.findEventById(eventId);
+export const getEventById = async (id) => {
+    const event = await eventRepo.findEventById(id);
+    return event ? { ok: true, value: event } : { ok: false, error: "NotFound" };
+};
 
-  // rule 1: If it doesn't exist in the repo it's a 404
-  if (!event) {
-    return { ok: false, error: "Event not found" };
-  }
+export const getFilteredEvents = async (filters = {}) => {
+    try {
+        const allEvents = await eventRepo.findAll();
+        let filtered = allEvents.filter(e => e.status === 'published');
 
-  // rule 2: any user can see 'published' events but drafts are restricted.
+        if (filters.category && filters.category !== 'all') {
+            filtered = filtered.filter(e => e.category.toLowerCase() === filters.category.toLowerCase());
+        }
+
+        return { ok: true, value: filtered };
+    } catch (e) {
+        return { ok: false, error: "EventError" };
+    }
+};
+
+export const getEventDetail = async (id: string, currentUser: any) => {
+  const event = await repo.findById(id);
+  
+  // Requirement: Missing events return 404
+  if (!event) return { ok: false, error: new EventNotFoundError() };
+
+  // Requirement: Draft visibility rule
   if (event.status === 'draft') {
-    const isOrganizer = currentUser?.id === event.organizerId;
-    const isAdmin = currentUser?.role === 'admin';
-
+    const isOrganizer = currentUser && event.organizerId === currentUser.userId;
+    const isAdmin = currentUser && currentUser.role === 'admin';
+    
     if (!isOrganizer && !isAdmin) {
-      // security by obscurity: return "Not found" so unauthorized users 
-      // don't even know a draft exists at this ID
-      return { ok: false, error: "Event not found" };
+      // We return NotFound (404) even for drafts to hide their existence
+      return { ok: false, error: new EventNotFoundError() }; 
     }
   }
-
-  // success path
+  
   return { ok: true, value: event };
 };
