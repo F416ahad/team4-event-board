@@ -210,4 +210,49 @@ describe('Feature 4 – RSVP Toggle: service layer', () => {
     });
   });
 
-  
+  // ── Domain errors ──────────────────────────────────────────────────────────
+
+  describe('domain errors', () => {
+    it('toggleRSVP on non-existent event -> EventNotFoundError', async () => {
+      const { rsvpService } = makeTestBed();
+
+      const result = await rsvpService.toggleRSVP('ghost-event', 'user-1');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(EventNotFoundError);
+    });
+
+    it('toggleRSVP on cancelled event -> EventCancelledError', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+      (event as any).status = 'cancelled';
+
+      const result = await rsvpService.toggleRSVP(event.id, 'user-1');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(EventCancelledError);
+    });
+
+    it('toggleRSVP on a past event -> EventPastError', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+      (event as any).date = '2020-01-01T00:00:00.000Z';
+
+      const result = await rsvpService.toggleRSVP(event.id, 'user-1');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(EventPastError);
+    });
+
+    it('event full -> second user is waitlisted, not rejected', async () => {
+      const { rsvpService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService, 'Full Event', 'owner-1', 1);
+
+      await rsvpService.toggleRSVP(event.id, 'user-1');  // going (fills capacity)
+
+      const result = await rsvpService.toggleRSVP(event.id, 'user-2');
+      expect(result.ok).toBe(true);  // not an error — waitlist is valid
+
+      const rsvpResult = await rsvpService.getUserRsvp(event.id, 'user-2');
+      expect((rsvpResult.value as RSVP).status).toBe('waitlisted');
+    });
+  });
+
+ 
