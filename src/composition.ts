@@ -23,8 +23,6 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
-  const rsvpService = CreateRsvpService(prismaClient);
-  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
   // Events wiring
   const eventRepo = new InMemoryEventRepository();
@@ -74,8 +72,6 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     },
   ]);
 
-  // Seed RSVPs — userId 'organizer-1' matches the demo admin user
-  // We need an eventId to seed RSVPs, so grab the first seeded event
   const seededEvents = eventRepo.getAll();
   if (seededEvents.length > 0) {
     const firstEventId = seededEvents[0].id;
