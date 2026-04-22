@@ -243,3 +243,81 @@ describe('Feature 13 – Comments: service layer', () => {
     });
   });
 
+  // ── deleteComment – happy path ────────────────────────────────────────────
+
+  describe('deleteComment – happy path', () => {
+    it('comment author can delete their own comment', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService);
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, 'user-1', 'user', undefined);
+      expect(result.ok).toBe(true);
+    });
+
+    it('event organizer can delete any comment on their event', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService, 'Org Event', 'organizer-1');
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, 'organizer-1', 'user', 'organizer-1');
+      expect(result.ok).toBe(true);
+    });
+
+    it('admin can delete any comment regardless of ownership', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService);
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, 'admin-1', 'admin', undefined);
+      expect(result.ok).toBe(true);
+    });
+
+    it('deleted comment no longer appears in the listing', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService);
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      await commentService.deleteComment(comment.id, 'user-1', 'user', undefined);
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-1', undefined);
+      expect((listing.value as CommentWithPermissions[]).length).toBe(0);
+    });
+  });
+
+  // ── deleteComment – UnauthorizedDeleteError ───────────────────────────────
+
+  describe('deleteComment – unauthorized', () => {
+    it('a different regular user cannot delete someone else\'s comment', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService, 'Event', 'organizer-1');
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, 'user-2', 'user', 'organizer-1');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(UnauthorizedDeleteError);
+    });
+
+    it('unauthenticated user (undefined userId) cannot delete any comment', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService);
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, undefined, undefined, undefined);
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(UnauthorizedDeleteError);
+    });
+  });
+
+  // ── deleteComment – CommentNotFoundError ──────────────────────────────────
+
+  describe('deleteComment – comment not found', () => {
+    it('returns CommentNotFoundError for a non-existent comment id', async () => {
+      const { commentService } = makeTestBed();
+
+      const result = await commentService.deleteComment('ghost-comment', 'user-1', 'user', undefined);
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(CommentNotFoundError);
+    });
+  });
+
