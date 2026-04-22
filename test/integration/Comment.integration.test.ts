@@ -231,4 +231,15 @@ describe('Feature 13 – Comments: service layer', () => {
     });
   });
 
-  
+  // ── postComment – EventNotFoundError ──────────────────────────────────────
+
+  describe('postComment – event not found', () => {
+    it('returns EventNotFoundError when posting to a non-existent event', async () => {
+      const { commentService } = makeTestBed();
+
+      const result = await commentService.postComment('ghost-event', 'user-1', 'Alice', 'Hello!');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(EventNotFoundError);
+    });
+  });
+
