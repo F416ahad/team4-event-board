@@ -144,3 +144,48 @@ describe('Feature 13 – Comments: HTTP layer', () => {
   });
 });
 
+// ─── Service-layer tests ─────────────────────────────────────────────────────
+
+describe('Feature 13 – Comments: service layer', () => {
+
+  // ── postComment happy path ─────────────────────────────────────────────────
+
+  describe('postComment – happy path', () => {
+    it('creates a comment and returns correct fields', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', 'Hello!');
+      expect(result.ok).toBe(true);
+
+      const comment = result.value as Comment;
+      expect(comment.id).toBeDefined();
+      expect(comment.eventId).toBe(event.id);
+      expect(comment.userId).toBe('user-1');
+      expect(comment.displayName).toBe('Alice');
+      expect(comment.content).toBe('Hello!');
+      expect(comment.createdAt).toBeInstanceOf(Date);
+    });
+
+    it('trims leading and trailing whitespace from content before saving', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', '  hello  ');
+      expect((result.value as Comment).content).toBe('hello');
+    });
+
+    it('multiple comments on the same event are all retrievable', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      await commentService.postComment(event.id, 'user-1', 'Alice', 'First');
+      await commentService.postComment(event.id, 'user-2', 'Bob',   'Second');
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-1', 'owner-1');
+      expect(listing.ok).toBe(true);
+      expect((listing.value as CommentWithPermissions[]).length).toBe(2);
+    });
+  });
+
+ 
