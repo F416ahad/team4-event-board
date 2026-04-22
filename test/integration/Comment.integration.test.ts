@@ -188,4 +188,26 @@ describe('Feature 13 – Comments: service layer', () => {
     });
   });
 
- 
+  // ── postComment – CommentEmptyError ───────────────────────────────────────
+
+  describe('postComment – empty content', () => {
+    it('returns CommentEmptyError for an empty string', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', '');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(CommentEmptyError);
+    });
+
+    it('returns CommentEmptyError for whitespace-only content', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', '   ');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(CommentEmptyError);
+    });
+  });
+
+  
