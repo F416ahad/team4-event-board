@@ -1,32 +1,63 @@
 import * as eventRepo from '../repositories/InMemoryEventRepository.js';
+import { InvalidFilterError, EventNotFoundError } from '../core/errors.js';
 
 /**
  * service to handle the logic for viewing event details
- * 
- * * @param {string} eventId 
- * @param {Object} currentUser 
- * @returns {Object} result pattern: { ok: boolean, value?: Object, error?: string }
  */
 export const getEventDetail = async (eventId, currentUser) => {
   const event = await eventRepo.findEventById(eventId);
 
-  // rule 1: If it doesn't exist in the repo it's a 404
   if (!event) {
-    return { ok: false, error: "Event not found" };
+    return { ok: false, error: new EventNotFoundError() };
   }
 
-  // rule 2: any user can see 'published' events but drafts are restricted.
   if (event.status === 'draft') {
     const isOrganizer = currentUser?.id === event.organizerId;
     const isAdmin = currentUser?.role === 'admin';
 
     if (!isOrganizer && !isAdmin) {
-      // security by obscurity: return "Not found" so unauthorized users 
-      // don't even know a draft exists at this ID
-      return { ok: false, error: "Event not found" };
+      return { ok: false, error: new EventNotFoundError() };
     }
   }
 
-  // success path
   return { ok: true, value: event };
+};
+
+/**
+ * service to handle the logic for filtering events, feat 6
+ */
+export const getFilteredEvents = async (filters = {}) => {
+  // 1. validation logic for Sprint 2
+  const validCategories = ['all', 'Academic', 'Social'];
+  const validTimeframes = ['all-upcoming', 'this-week', 'this-weekend'];
+
+  if (filters.category && !validCategories.includes(filters.category)) {
+    return { ok: false, error: new InvalidFilterError('category') };
+  }
+  if (filters.timeframe && !validTimeframes.includes(filters.timeframe)) {
+    return { ok: false, error: new InvalidFilterError('timeframe') };
+  }
+
+  // 2. fetch data
+  const all = await eventRepo.findAll();
+  
+  // 3. filter Logic (Sprint 1)
+  // only published events appear in filtered results
+  let filtered = all.filter(e => e.status === 'published');
+
+  if (filters.category && filters.category !== 'all') {
+    filtered = filtered.filter(
+      e => e.category.toLowerCase() === filters.category.toLowerCase()
+    );
+  }
+
+  // timeframe logic (simplified for demo)
+  const now = new Date();
+  if (filters.timeframe === 'this-week') {
+    const nextWeek = new Date();
+    nextWeek.setDate(now.getDate() + 7);
+    filtered = filtered.filter(e => e.startDatetime >= now && e.startDatetime <= nextWeek);
+  }
+
+  return { ok: true, value: filtered };
 };
