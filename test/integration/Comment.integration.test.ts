@@ -365,3 +365,57 @@ describe('Feature 13 – Comments: service layer', () => {
     });
   });
 
+  // ── edge cases ────────────────────────────────────────────────────────────
+
+  describe('edge cases', () => {
+    it('comments on different events are isolated and do not bleed across events', async () => {
+       const { rsvpService, commentService } = makeTestBed();
+
+        // create first event and wait a few ms to ensure a unique timestamp for its ID
+        const eventA = await seedFutureEvent(rsvpService, 'Event A');
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // create second event
+        const eventB = await seedFutureEvent(rsvpService, 'Event B');
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // post comment on event A
+        await seedComment(commentService, eventA.id, 'user-1', 'Alice', 'On A');
+        await new Promise(resolve => setTimeout(resolve, 10)); // ensure ordering
+
+        // post comment on event B
+        await seedComment(commentService, eventB.id, 'user-1', 'Alice', 'On B');
+
+        const listingA = await commentService.getCommentsWithPermissions(eventA.id, 'user-1', undefined);
+        const listingB = await commentService.getCommentsWithPermissions(eventB.id, 'user-1', undefined);
+
+        expect((listingA.value as CommentWithPermissions[]).length).toBe(1);
+        expect((listingA.value as CommentWithPermissions[])[0].content).toBe('On A');
+        expect((listingB.value as CommentWithPermissions[]).length).toBe(1);
+        expect((listingB.value as CommentWithPermissions[])[0].content).toBe('On B');
+    });
+
+    it('comments are returned in chronological order (oldest first)', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      await seedComment(commentService, event.id, 'user-1', 'Alice', 'First');
+      // Small delay to guarantee distinct createdAt timestamps
+      await new Promise(r => setTimeout(r, 5));
+      await seedComment(commentService, event.id, 'user-2', 'Bob', 'Second');
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, undefined, undefined);
+      const contents = (listing.value as CommentWithPermissions[]).map(c => c.content);
+      expect(contents).toEqual(['First', 'Second']);
+    });
+
+    it('an event with zero comments returns an empty array, not an error', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-1', undefined);
+      expect(listing.ok).toBe(true);
+      expect((listing.value as CommentWithPermissions[]).length).toBe(0);
+    });
+  });
+});
