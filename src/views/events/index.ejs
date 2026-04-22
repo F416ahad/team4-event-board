@@ -11,7 +11,39 @@
   </p>
 </section>
 
-<%# Display any page-level error (e.g., failed to load events) %>
+<%# Feature 6: Filter Bar with HTMX %>
+<section class="mb-6 p-4 bg-slate-100 rounded-xl border border-slate-200">
+  <form hx-get="/events" 
+        hx-target="#event-list-container" 
+        hx-trigger="change" 
+        hx-push-url="true" 
+        class="flex flex-wrap gap-4 items-center">
+    
+    <div class="flex flex-col">
+      <label class="text-xs font-bold text-slate-600 uppercase mb-1">Category</label>
+      <select name="category" class="rounded-lg border-slate-300 text-sm focus:ring-blue-500">
+        <option value="all" <%= filters?.category === 'all' ? 'selected' : '' %>>All Categories</option>
+        <option value="Academic" <%= filters?.category === 'Academic' ? 'selected' : '' %>>Academic</option>
+        <option value="Social" <%= filters?.category === 'Social' ? 'selected' : '' %>>Social</option>
+      </select>
+    </div>
+
+    <div class="flex flex-col">
+      <label class="text-xs font-bold text-slate-600 uppercase mb-1">Timeframe</label>
+      <select name="timeframe" class="rounded-lg border-slate-300 text-sm focus:ring-blue-500">
+        <option value="all-upcoming" <%= filters?.timeframe === 'all-upcoming' ? 'selected' : '' %>>All Upcoming</option>
+        <option value="this-week" <%= filters?.timeframe === 'this-week' ? 'selected' : '' %>>This Week</option>
+        <option value="this-weekend" <%= filters?.timeframe === 'this-weekend' ? 'selected' : '' %>>This Weekend</option>
+      </select>
+    </div>
+
+    <button type="submit" class="mt-5 px-4 py-2 bg-slate-700 text-white text-sm rounded-lg hover:bg-slate-800 transition-colors">
+      Filter
+    </button>
+  </form>
+</section>
+
+<%# Display any page-level error %>
 <% if (typeof error !== 'undefined' && error) { %>
   <%- include("../partials/error", { message: error }) %>
 <% } %>
@@ -23,33 +55,7 @@
   </a>
 </div>
 
-<%# Events list using same card style as existing users list %>
-<div class="grid gap-4">
-  <% if (events && events.length) { %>
-    <% events.forEach(event => { %>
-      <div class="flex items-center justify-between gap-4 p-5 border border-slate-200 rounded-xl bg-white shadow-md">
-        <div>
-          <h2 class="text-xl font-semibold text-slate-900"><%= event.title %></h2>
-          <p class="text-sm text-slate-500 mt-1">
-            <strong>Date:</strong> <%= new Date(event.date).toLocaleString() %>
-          </p>
-          <p class="text-sm text-slate-500">
-            <strong>Status:</strong> 
-            <span class="capitalize <%= event.status === 'cancelled' ? 'text-red-600' : 'text-green-600' %>">
-              <%= event.status %>
-            </span>
-          </p>
-        </div>
-        <div>
-          <a href="/events/<%= event.id %>" class="px-4 py-2 rounded-lg bg-slate-600 text-white font-medium hover:bg-slate-700">
-            View Details
-          </a>
-        </div>
-      </div>
-    <% }); %>
-  <% } else { %>
-    <div class="p-6 text-center border border-slate-200 rounded-xl bg-slate-50">
-      <p class="text-slate-500">No events found. Create one to get started!</p>
-    </div>
-  <% } %>
+<%# Events list container - This is the target for HTMX updates %>
+<div id="event-list-container">
+  <%- include("../partials/event-list") %>
 </div>

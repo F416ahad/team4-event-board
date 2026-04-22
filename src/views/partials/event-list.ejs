@@ -1,0 +1,15 @@
+<ul class="event-list" id="event-list-content">
+    <% if (events.length === 0) { %>
+        <li class="p-4 text-slate-500 italic">No events found matching these filters.</li>
+    <% } %>
+    <% events.forEach(event => { %>
+        <li class="p-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+            <a href="/events/<%= event.id %>" class="text-blue-600 font-bold hover:underline">
+                <%= event.title %>
+            </a> 
+            — <span class="badge bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
+                <%= event.category %>
+            </span>
+        </li>
+    <% }) %>
+</ul>
