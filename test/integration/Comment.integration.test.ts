@@ -71,3 +71,18 @@ function makeTestBed() {
   return { expressApp, rsvpService, commentService };
 }
 
+/** Seeds a future-dated active event and returns it. */
+async function seedFutureEvent(
+  service: RsvpService,
+  title   = 'Test Event',
+  ownerId = 'owner-1',
+): Promise<Event> {
+  const result = await service.createEvent(title, ownerId);
+  if(!result.ok) throw new Error('seedFutureEvent: createEvent failed');
+  const event = result.value as Event;
+  const future = new Date();
+  future.setDate(future.getDate() + 30);
+  (event as any).date = future.toISOString();
+  return event;
+}
+
