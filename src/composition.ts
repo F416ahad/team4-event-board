@@ -14,6 +14,7 @@ import { PrismaClient, Prisma } from "@prisma/client";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
+  const prisma = new PrismaClient();
 
   // ── Auth wiring ───────────────────────────────────────────────────
   const authUsers = CreateInMemoryUserRepository();
