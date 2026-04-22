@@ -37,44 +37,41 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const past = (h: number) => new Date(now.getTime() - h * 60 * 60 * 1000);
 
   eventRepo.seed([
-    {
-      title: 'Opening Keynote',
-      description: 'Annual kickoff event.',
-      location: 'Main Hall',
-      category: 'academic',
-      organizerId: 'organizer-1',
-      startTime: past(5),
-      endTime: past(4),
-      capacity: 200,
-      status: 'past',
-      id: ""
-    },
-    {
-      title: 'Hackathon 2024',
-      description: '24-hour coding competition.',
-      location: 'Engineering Lab',
-      category: 'tech',
-      organizerId: 'organizer-1',
-      startTime: past(30),
-      endTime: past(6),
-      capacity: 50,
-      status: 'past',
-      id: ""
-    },
-    {
-      title: 'Spring Social',
-      description: 'End of semester social.',
-      location: 'Courtyard',
-      category: 'social',
-      organizerId: 'organizer-1',
-      startTime: past(48),
-      endTime: past(46),
-      capacity: 100,
-      status: 'past',
-      id: ""
-    },
-  ]);
-
+      {
+        title: 'Opening Keynote',
+        description: 'Annual kickoff event.',
+        location: 'Main Hall',
+        category: 'academic',
+        organizerId: 'organizer-1',
+        startTime: past(5),
+        endTime: past(4),
+        capacity: 200,
+        status: 'past',
+      },
+      {
+        title: 'Hackathon 2024',
+        description: '24-hour coding competition.',
+        location: 'Engineering Lab',
+        category: 'tech',
+        organizerId: 'organizer-1',
+        startTime: past(30),
+        endTime: past(6),
+        capacity: 50,
+        status: 'past',
+      },
+      {
+        title: 'Spring Social',
+        description: 'End of semester social.',
+        location: 'Courtyard',
+        category: 'social',
+        organizerId: 'organizer-1',
+        startTime: past(48),
+        endTime: past(46),
+        capacity: 100,
+        status: 'past',
+      },
+    ]);
+  
   const seededEvents = eventRepo.getAll();
   if (seededEvents.length > 0) {
     const firstEventId = seededEvents[0].id;

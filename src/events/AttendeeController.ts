@@ -42,6 +42,16 @@ class AttendeeController implements IAttendeeController {
 
     const session = recordPageView(req.session as AppSessionStore)
 
+    const isHtmx = req.get('HX-Request') === 'true'
+
+    if (isHtmx) {
+      res.render('events/partials/attendee-list', {
+        attendees: result.value,
+        layout: false,
+      })
+      return
+    }
+
     res.render('events/attendees', {
       session,
       attendees: result.value,

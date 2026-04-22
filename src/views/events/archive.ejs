@@ -1,44 +1,35 @@
-<div class="max-w-4xl mx-auto px-4 py-8">
+<div class="max-w-4xl mx-auto px-4 py-8" x-data="{ activeCategory: '<%= selectedCategory ?? '' %>' }">
   <h1 class="text-2xl font-bold mb-2">Past Events</h1>
   <p class="text-gray-500 mb-6">Events that have already ended.</p>
 
-  <form method="GET" action="/archive" class="mb-6 flex gap-2 flex-wrap">
-    <button type="submit" name="category" value=""
-      class="px-3 py-1 rounded border text-sm <%= !selectedCategory ? 'bg-gray-800 text-white' : 'bg-white text-gray-700' %>">
+  <!-- Category filter buttons -->
+  <div class="mb-6 flex gap-2 flex-wrap">
+    <button
+      hx-get="/archive"
+      hx-target="#archive-list"
+      hx-swap="innerHTML"
+      hx-trigger="click"
+      @click="activeCategory = ''"
+      :class="activeCategory === '' ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'"
+      class="px-3 py-1 rounded border text-sm">
       All
     </button>
     <% categories.forEach(cat => { %>
-      <button type="submit" name="category" value="<%= cat %>"
-        class="px-3 py-1 rounded border text-sm capitalize <%= selectedCategory === cat ? 'bg-gray-800 text-white' : 'bg-white text-gray-700' %>">
+      <button
+        hx-get="/archive?category=<%= cat %>"
+        hx-target="#archive-list"
+        hx-swap="innerHTML"
+        hx-trigger="click"
+        @click="activeCategory = '<%= cat %>'"
+        :class="activeCategory === '<%= cat %>' ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'"
+        class="px-3 py-1 rounded border text-sm capitalize">
         <%= cat %>
       </button>
     <% }) %>
-  </form>
+  </div>
 
-  <% if (events.length === 0) { %>
-    <p class="text-gray-400 italic">No past events found.</p>
-  <% } else { %>
-    <ul class="space-y-4">
-      <% events.forEach(event => { %>
-        <li class="border rounded p-4 bg-gray-50 opacity-75">
-          <div class="flex justify-between items-start">
-            <div>
-              <h2 class="font-semibold text-gray-700"><%= event.title %></h2>
-              <p class="text-sm text-gray-500"><%= event.location %></p>
-            </div>
-            <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 capitalize">
-              <%= event.category %>
-            </span>
-          </div>
-          <p class="text-xs text-gray-400 mt-2">
-            Ended <%= new Date(event.endTime).toLocaleString() %>
-          </p>
-          <a href="/events/<%= event.id %>/attendees"
-            class="text-xs text-blue-600 hover:underline mt-2 inline-block">
-            View Attendees
-          </a>
-        </li>
-      <% }) %>
-    </ul>
-  <% } %>
+  <!-- Only the event list is swapped -->
+  <div id="archive-list">
+    <%- include('partials/archive-list', { events, selectedCategory, categories }) %>
+  </div>
 </div>
