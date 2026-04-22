@@ -47,6 +47,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
       endTime: past(4),
       capacity: 200,
       status: 'past',
+      id: ""
     },
     {
       title: 'Hackathon 2024',
@@ -58,6 +59,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
       endTime: past(6),
       capacity: 50,
       status: 'past',
+      id: ""
     },
     {
       title: 'Spring Social',
@@ -69,6 +71,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
       endTime: past(46),
       capacity: 100,
       status: 'past',
+      id: ""
     },
   ]);
 
