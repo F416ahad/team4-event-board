@@ -321,3 +321,47 @@ describe('Feature 13 – Comments: service layer', () => {
     });
   });
 
+  // ── getCommentsWithPermissions – canDelete flag ───────────────────────────
+
+  describe('getCommentsWithPermissions – canDelete flag', () => {
+    it('canDelete is true for the comment\'s own author', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+      await seedComment(commentService, event.id, 'user-1');
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-1', undefined);
+      expect((listing.value as CommentWithPermissions[])[0].canDelete).toBe(true);
+    });
+
+    it('canDelete is false for a non-author non-organizer regular user', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService, 'Event', 'organizer-1');
+      await seedComment(commentService, event.id, 'user-1');
+
+      // user-2 is neither the author nor the organizer
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-2', 'organizer-1');
+      expect((listing.value as CommentWithPermissions[])[0].canDelete).toBe(false);
+    });
+
+    it('canDelete is true for the event organizer on all comments', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService, 'Event', 'organizer-1');
+      await seedComment(commentService, event.id, 'user-1', 'Alice', 'Comment 1');
+      await seedComment(commentService, event.id, 'user-2', 'Bob',   'Comment 2');
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'organizer-1', 'organizer-1');
+      const allCanDelete = (listing.value as CommentWithPermissions[]).every(c => c.canDelete === true);
+      expect(allCanDelete).toBe(true);
+    });
+
+    it('canDelete is false for all comments when no user is logged in', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+      await seedComment(commentService, event.id);
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, undefined, undefined);
+      const noneCanDelete = (listing.value as CommentWithPermissions[]).every(c => c.canDelete === false);
+      expect(noneCanDelete).toBe(true);
+    });
+  });
+
