@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import type { ArchiveError, IArchiveService } from './ArchiveService'
 import type { EventCategory } from './Event'
-import { getAuthenticatedUser, recordPageView } from '../session/AppSession'
+import { recordPageView } from '../session/AppSession'
 import type { AppSessionStore } from '../session/AppSession'
 
 const VALID_CATEGORIES: EventCategory[] = [
@@ -28,6 +28,19 @@ class ArchiveController implements IArchiveController {
       const err = result.value as ArchiveError
       res.status(500).render('partials/error', {
         message: err.message,
+        layout: false,
+      })
+      return
+    }
+
+    const isHtmx = req.get('HX-Request') === 'true'
+
+    if (isHtmx) {
+      // Return only the event list partial for inline swap
+      res.render('events/partials/archive-list', {
+        events: result.value,
+        selectedCategory: category ?? null,
+        categories: VALID_CATEGORIES,
         layout: false,
       })
       return
