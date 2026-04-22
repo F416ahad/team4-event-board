@@ -152,3 +152,7 @@ class RsvpService implements IRsvpService {
       });
     }
   }}
+
+export function CreateRsvpService(prisma: PrismaClient): IRsvpService {
+  return new RsvpService(prisma);
+}
