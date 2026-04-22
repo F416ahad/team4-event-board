@@ -210,4 +210,25 @@ describe('Feature 13 – Comments: service layer', () => {
     });
   });
 
+  // ── postComment – CommentTooLongError ─────────────────────────────────────
+
+  describe('postComment – content too long', () => {
+    it('returns CommentTooLongError for content exceeding 500 characters', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', 'a'.repeat(501));
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(CommentTooLongError);
+    });
+
+    it('accepts content of exactly 500 characters', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', 'a'.repeat(500));
+      expect(result.ok).toBe(true);
+    });
+  });
+
   
