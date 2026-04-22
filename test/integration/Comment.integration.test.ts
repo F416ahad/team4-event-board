@@ -86,3 +86,16 @@ async function seedFutureEvent(
   return event;
 }
 
+/** Seeds one comment and returns it. */
+async function seedComment(
+  service: CommentService,
+  eventId:     string,
+  userId      = 'user-1',
+  displayName = 'Alice',
+  content     = 'Hello!',
+): Promise<Comment> {
+  const result = await service.postComment(eventId, userId, displayName, content);
+  if(!result.ok) throw new Error('seedComment: postComment failed');
+  return result.value as Comment;
+}
+
