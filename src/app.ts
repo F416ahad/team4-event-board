@@ -18,8 +18,6 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
-import { IAttendeeController } from "./events/AttendeeController";
-import { IArchiveController } from "./events/ArchiveController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -41,6 +39,7 @@ class ExpressApp implements IApp {
     private readonly archiveController: IArchiveController,
     private readonly attendeeController: IAttendeeController,
     private readonly logger: ILoggingService,
+    private readonly rsvpController: IRsvpController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -267,6 +266,20 @@ class ExpressApp implements IApp {
       }),
     );
 
+      this.app.get(
+    "/events/:id",
+    asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) {
+        return;
+      }
+      const store = sessionStore(req);
+      const user = getAuthenticatedUser(store);
+      if (!user) return;
+      const eventId = req.params.id as string;
+      await this.rsvpController.showEvent(req, res, eventId, user.userId);
+    })
+  );
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -289,6 +302,7 @@ export function CreateApp(
   archiveController: IArchiveController,
   attendeeController: IAttendeeController,
   logger: ILoggingService,
+  rsvpController: IRsvpController,
 ): IApp {
-  return new ExpressApp(authController, archiveController, attendeeController, logger);
+  return new ExpressApp(authController, logger);
 }
