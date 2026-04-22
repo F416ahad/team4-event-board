@@ -7,7 +7,8 @@ export interface IRsvpController {
   cancelRsvpFromForm(
     req: Request,
     res: Response,
-    eventId: string
+    eventId: string, 
+    userId: string
   ): Promise<void>;
   showEvent(
     req: Request,
@@ -29,7 +30,7 @@ class RsvpController implements IRsvpController {
     eventId: string
   ): Promise<void> {
     const result = await this.rsvpService.cancelRsvpAndPromote(
-    eventId,
+    eventId, 
     userId
   );
 
@@ -77,7 +78,7 @@ class RsvpController implements IRsvpController {
     }
 
     const event = result.value;
-    const currentUserRsvp = event.rsvps.find((r) => r.memberId === userId) ?? null;
+    const currentUserRsvp = event.rsvps.find((r: { memberId: string; }) => r.memberId === userId) ?? null;
 
     res.render("events", {
       event,

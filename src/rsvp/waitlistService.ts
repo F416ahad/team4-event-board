@@ -1,8 +1,10 @@
 import "dotenv/config";
 import { Err, Ok, type Result } from "../lib/result";
 import type { PrismaClient, Prisma } from "@prisma/client";
+import { EventWithRsvps } from "./InMemoryRepository";
 
-interface IRsvpService {
+export interface IRsvpService {
+  getEventWithRsvps(eventId: string): unknown;
   cancelRsvpAndPromote(
     eventId: string,
     memberId: string
