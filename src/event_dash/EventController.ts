@@ -8,6 +8,16 @@ export interface IDashboardController {
     res: Response,
     session: IAppBrowserSession
   ): Promise<void>;
+  publishEvent(
+    res: Response,
+    eventId: string,
+    session: IAppBrowserSession
+  ): Promise<void>;
+  cancelEvent(
+    res: Response,
+    eventId: string,
+    session: IAppBrowserSession
+  ): Promise<void>;
 }
 
 export class DashboardController implements IDashboardController {
@@ -65,5 +75,65 @@ export class DashboardController implements IDashboardController {
       session,
       error: "You are not allowed to access this dashboard",
     });
+  }}
+  async publishEvent(
+    res: Response,
+    eventId: string,
+    session: IAppBrowserSession
+  ): Promise<void> {
+    const auth = session.authenticatedUser;
+    if (!auth) {
+      res.status(403).send("Forbidden");
+      return;
+    }
+    try {
+      await this.service.updateEventStatus(
+        eventId,
+        auth.userId,
+        auth.role,
+        "PUBLISHED"
+      );
+      const updated = await this.service.getEventForDashboard(eventId);
+      res.status(200).render("dashboard/_event-row", {
+        event: updated,
+        session,
+      });
+      } catch (err) {
+        res.status(403).send("Forbidden");
+    }
+    }
+
+    async cancelEvent(
+      res: Response,
+      eventId: string,
+      session: IAppBrowserSession
+    ): Promise<void> {
+      const auth = session.authenticatedUser;
+      if (!auth) {
+        res.status(403).send("Forbidden");
+        return;
+      }
+      try {
+        await this.service.updateEventStatus(
+          eventId,
+          auth.userId,
+          auth.role,
+          "CANCELLED"
+        );
+        const updated = await this.service.getEventForDashboard(eventId);
+        res.status(200).render("dashboard/_event-row", {
+          event: updated,
+          session,
+        });
+      } catch (err) {
+        res.status(403).send("Forbidden");
+      }
   }
-}}
+}
+export function CreateDashboardController(
+  service: DashboardService,
+  logger: ILoggingService
+
+): IDashboardController {
+  return new DashboardController(service, logger);
+}
