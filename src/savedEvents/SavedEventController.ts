@@ -2,18 +2,17 @@
 import { Request, Response } from 'express';
 import { SavedEventService } from './SavedEventService';
 import { getAllEvents } from '../repositories/InMemoryEventRepository';
-import { getAuthenticatedUser, sessionStore } from '../session/AppSession';
+// Fixed Import: brought in AppSessionStore type
+import { getAuthenticatedUser, type AppSessionStore } from '../session/AppSession';
 
 export const SavedEventController = {
   
   /**
    * POST: Toggles the save status of an event.
-   * Requirement: "updating inline without a full page reload"
-   * So we return a simple 200 OK response instead of a redirect.
    */
   toggleSave: async (req: Request, res: Response) => {
     // 1. Parse request: Get user and event ID
-    const store = sessionStore(req);
+    const store = req.session as AppSessionStore;
     const user = getAuthenticatedUser(store);
     
     if (!user) {
@@ -25,11 +24,34 @@ export const SavedEventController = {
     // 2. Call Service
     const result = await SavedEventService.toggleSave(user.userId, eventId);
 
-    // 3. Map Result to Response
+    // 3. Map Result to Response (Sprint 2 HTMX Upgrade)
     if (result.ok) {
+      const isHtmx = req.get("HX-Request") === "true";
+      
+      const isNowSaved = result.value === "Event saved successfully";
+      
+      if (isHtmx) {
+        const btnText = isNowSaved ? "Remove from Saved" : "Save for Later";
+        const btnColor = isNowSaved ? "#ff4d4d" : "#28a745";
+        
+        const htmxButton = `
+          <button 
+            hx-post="/events/${eventId}/save" 
+            hx-swap="outerHTML" 
+            style="background: ${btnColor}; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+            ${btnText}
+          </button>
+        `;
+        return res.status(200).send(htmxButton);
+      }
+      
       return res.status(200).send(result.value);
     } else {
-      return res.status(500).send((result.value as Error).message);
+      const err = result.value as Error;
+      if (err.name === "InvalidSaveError") {
+        return res.status(400).send(err.message);
+      }
+      return res.status(500).send(err.message);
     }
   },
 
@@ -37,8 +59,8 @@ export const SavedEventController = {
    * GET: Displays the user's saved list dashboard.
    */
   showSavedList: async (req: Request, res: Response) => {
-    // 1. Parse request: Get user
-    const store = sessionStore(req);
+    // 1. Parse request: Fixed session store access
+    const store = req.session as AppSessionStore;
     const user = getAuthenticatedUser(store);
     
     if (!user) {
@@ -49,16 +71,17 @@ export const SavedEventController = {
     const result = await SavedEventService.getSavedEventsForUser(user.userId);
     
     if (!result.ok) {
-      return res.status(500).send(result.value.message);
+      // Fixed: Cast to Error for TypeScript
+      return res.status(500).send((result.value as Error).message);
     }
 
     const savedIds = result.value;
 
-    // 3. Fetch the full event details for those IDs using your teammate's repo
+    // 3. Fetch the full event details
     const allEvents = getAllEvents();
     const savedEvents = allEvents.filter(event => savedIds.includes(event.id));
 
-    // 4. Map Result to Response (Render the template)
+    // 4. Map Result to Response
     return res.render('savedEvents/list', { events: savedEvents });
   }
 };

@@ -21,7 +21,8 @@
               <a href="/events/<%= event.id %>" style="margin-right: 15px; color: #007bff;">View Details</a>
               
               <button 
-                onclick="unsaveEvent('<%= event.id %>')" 
+                hx-post="/events/<%= event.id %>/save" 
+                hx-swap="outerHTML"
                 style="background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
                 Remove from Saved
               </button>
@@ -32,25 +33,3 @@
     <% } %>
   </div>
 </div>
-
-<script>
-  async function unsaveEvent(eventId) {
-    if (!confirm('Remove this event from your saved list?')) return;
-
-    try {
-      const response = await fetch(`/events/${eventId}/save`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        // Refresh the page to show the updated list
-        window.location.reload();
-      } else {
-        alert('Failed to remove event.');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('An error occurred.');
-    }
-  }
-</script>

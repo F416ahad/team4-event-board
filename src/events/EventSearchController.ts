@@ -24,7 +24,7 @@ export const EventSearchController = {
       });
     } else {
       // Failure: Send back the error message
-      return res.status(500).send(result.value.message);
+      return res.status(500).send((result.value as Error).message);
     }
   }
 };
