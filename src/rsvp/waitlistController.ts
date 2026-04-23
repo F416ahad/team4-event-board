@@ -79,8 +79,8 @@ class RsvpController implements IRsvpController {
     }
 
     const event = result;
+    // @ts-ignore
     const currentUserRsvp = event.rsvps.find((r: { memberId: string; }) => r.memberId === userId) ?? null;
-
     res.render("events", {
       event,
       currentUserRsvp,

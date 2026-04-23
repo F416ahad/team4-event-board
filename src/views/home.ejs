@@ -98,18 +98,4 @@
   </div>
 </section>
 
-<% events.forEach(e => { %>
-  <a href="/events/<%= e.id %>" class="block border p-4 rounded-lg mb-2 hover:bg-slate-50 transition-colors no-underline">
-    <div class="flex justify-between items-center">
-      <div>
-        <strong class="text-slate-800"><%= e.title %></strong>
-        <p class="text-sm text-slate-500">
-          <%= e.category %> • <%= e.date.toDateString() %>
-        </p>
-      </div>
-      <div class="text-sm text-slate-600">
-        <%= e.attendingCount %> / <%= e.capacity %>
-      </div>
-    </div>
-  </a>
-<% }) %>
+

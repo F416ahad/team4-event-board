@@ -137,23 +137,3 @@ export function CreateDashboardController(
 ): IDashboardController {
   return new DashboardController(service, logger);
 }
-export function CreateEventController(service: IEventService): IEventController {
-  return new EventController(service);
-}
-
-export const handleRSVP = async (req: any, res: any) => {
-    const result = await eventService.getEventDetail(req.params.id, req.session.user);
-
-    if (result.ok && result.value) {
-        // simple increment for sprint 2 demo
-        result.value.attendeeCount++; 
-
-        // render only the partial, no layout
-        res.render('partials/rsvp-status', { 
-            event: result.value, 
-            layout: false 
-        });
-    } else {
-        res.status(400).send("RSVP failed");
-    }
-};

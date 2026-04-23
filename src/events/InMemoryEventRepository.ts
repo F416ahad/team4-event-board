@@ -50,10 +50,11 @@ export class InMemoryEventRepository implements IEventRepository {
     return count
   }
 
-  seed(events: Omit<Event, 'createdAt'>[]): void {
+  seed(events: (Partial<Pick<Event, 'id'>> & Omit<Event, 'id' | 'createdAt'>)[]): void {
     for (const input of events) {
       const event: Event = {
         ...input,
+        id: input.id && input.id !== '' ? input.id : randomUUID(),
         createdAt: new Date(),
       }
       this.events.set(event.id, event)
