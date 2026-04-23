@@ -110,4 +110,26 @@ class RsvpService implements IRsvpService {
       });
     }
   }
-}
+  async getEventWithRsvps(
+    eventId: string
+  ): Promise<Result<EventWithRsvps | null, { name: "UnexpectedDependencyError"; message: string }>> {
+    try {
+      const event = await this.prisma.event.findUnique({
+        where: { id: eventId },
+        include: {
+          rsvps: {
+            where: {status: { not: "CANCELLED" } },
+            orderBy: { createdAt: "asc" },
+            include: { member: { select: { displayName: true } } },
+          }
+        }
+      });
+      return Ok(event);
+    } catch (e) {
+      return Err({
+        name: "UnexpectedDependencyError" as const,
+        message:
+          e instanceof Error ? e.message : "Failed to fetch event with RSVPs",
+      });
+    }
+  }}

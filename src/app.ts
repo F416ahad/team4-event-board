@@ -18,8 +18,7 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
-import { IAttendeeController } from "./events/AttendeeController";
-import { IArchiveController } from "./events/ArchiveController";
+import { IRsvpController } from "./rsvp/waitlistController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -41,6 +40,8 @@ class ExpressApp implements IApp {
     private readonly archiveController: IArchiveController,
     private readonly attendeeController: IAttendeeController,
     private readonly logger: ILoggingService,
+    private readonly eventController: IEventController,
+    private readonly rsvpController: IRsvpController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -267,6 +268,63 @@ class ExpressApp implements IApp {
       }),
     );
 
+      this.app.get(
+    "/events/:id",
+    asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) {
+        return;
+      }
+      const store = sessionStore(req);
+      const user = getAuthenticatedUser(store);
+      if (!user) return;
+      const eventId = req.params.id as string;
+      await this.rsvpController.showEvent(req, res, eventId, user.userId);
+    })
+  );
+
+    // Add these two routes inside registerRoutes() in app.ts
+// Place them alongside the existing /events/:id and /dashboard routes
+
+    this.app.post(
+      "/events/:id/publish",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can publish events.")) {
+          return;
+        }
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store)!;
+        const htmx = this.isHtmxRequest(req);
+
+        await this.eventController.publishEventFromForm(
+          res,
+          typeof req.params.id === "string" ? req.params.id : "",
+          user.userId,
+          user.role as "admin" | "staff" | "user",
+          htmx
+        );
+      })
+    );
+
+    this.app.post(
+      "/events/:id/cancel",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers can cancel events.")) {
+          return;
+        }
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store)!;
+        const htmx = this.isHtmxRequest(req);
+
+        await this.eventController.cancelEventFromForm(
+          res,
+          typeof req.params.id === "string" ? req.params.id : "",
+          user.userId,
+          user.role as "admin" | "staff" | "user",
+          htmx
+        );
+      })
+    );
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -286,9 +344,8 @@ class ExpressApp implements IApp {
 
 export function CreateApp(
   authController: IAuthController,
-  archiveController: IArchiveController,
-  attendeeController: IAttendeeController,
   logger: ILoggingService,
+  rsvpController: IRsvpController,
 ): IApp {
-  return new ExpressApp(authController, archiveController, attendeeController, logger);
+  return new ExpressApp(authController, logger, rsvpController);
 }
