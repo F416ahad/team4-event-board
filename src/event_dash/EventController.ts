@@ -58,17 +58,20 @@ class EventController implements IEventController {
 export function CreateEventController(service: IEventService): IEventController {
   return new EventController(service);
 }
+
 export const handleRSVP = async (req: any, res: any) => {
-    const eventId = req.params.id;
-    const result = await eventService.getEventDetail(eventId, req.session.user);
+    const result = await eventService.getEventDetail(req.params.id, req.session.user);
 
     if (result.ok && result.value) {
-        // logic
+        // simple increment for sprint 2 demo
         result.value.attendeeCount++; 
-        
-        // return a simple success for the route test
-        res.status(200).send("RSVP Success");
+
+        // render only the partial, no layout
+        res.render('partials/rsvp-status', { 
+            event: result.value, 
+            layout: false 
+        });
     } else {
-        res.status(400).send("Could not process RSVP");
+        res.status(400).send("RSVP failed");
     }
 };
