@@ -112,4 +112,21 @@ export class DashboardService {
       organizerId: event.organizerId,
     };
   }
-}
+  async updateEventStatus(
+  eventId: string,
+  userId: string,
+  role: UserRole,
+  newStatus: EventStatus
+): Promise<void> {
+  const event = await this.prisma.event.findUnique({
+    where: { id: eventId },
+  });
+    if (!event) throw new Error("Event not found");
+
+  if (role === "user") throw new Error("Forbidden");
+
+  if (role === "staff" && event.organizerId !== userId) {
+    throw new Error("Forbidden");
+  }
+
+}}
