@@ -2,43 +2,28 @@
   <h1 class="text-2xl font-bold mb-2">Past Events</h1>
   <p class="text-gray-500 mb-6">Events that have already ended.</p>
 
-  <form method="GET" action="/archive" class="mb-6 flex gap-2 flex-wrap">
-    <button type="submit" name="category" value=""
+  <!-- Category filter — HTMX updates just the list below -->
+  <div class="mb-6 flex gap-2 flex-wrap">
+    <button
+      hx-get="/archive"
+      hx-target="#archive-list"
+      hx-swap="innerHTML"
       class="px-3 py-1 rounded border text-sm <%= !selectedCategory ? 'bg-gray-800 text-white' : 'bg-white text-gray-700' %>">
       All
     </button>
     <% categories.forEach(cat => { %>
-      <button type="submit" name="category" value="<%= cat %>"
+      <button
+        hx-get="/archive?category=<%= cat %>"
+        hx-target="#archive-list"
+        hx-swap="innerHTML"
         class="px-3 py-1 rounded border text-sm capitalize <%= selectedCategory === cat ? 'bg-gray-800 text-white' : 'bg-white text-gray-700' %>">
         <%= cat %>
       </button>
     <% }) %>
-  </form>
+  </div>
 
-  <% if (events.length === 0) { %>
-    <p class="text-gray-400 italic">No past events found.</p>
-  <% } else { %>
-    <ul class="space-y-4">
-      <% events.forEach(event => { %>
-        <li class="border rounded p-4 bg-gray-50 opacity-75">
-          <div class="flex justify-between items-start">
-            <div>
-              <h2 class="font-semibold text-gray-700"><%= event.title %></h2>
-              <p class="text-sm text-gray-500"><%= event.location %></p>
-            </div>
-            <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 capitalize">
-              <%= event.category %>
-            </span>
-          </div>
-          <p class="text-xs text-gray-400 mt-2">
-            Ended <%= new Date(event.endTime).toLocaleString() %>
-          </p>
-          <a href="/events/<%= event.id %>/attendees"
-            class="text-xs text-blue-600 hover:underline mt-2 inline-block">
-            View Attendees
-          </a>
-        </li>
-      <% }) %>
-    </ul>
-  <% } %>
+  <!-- Event list — swapped by HTMX on filter -->
+  <div id="archive-list">
+    <%- include('partials/archive-list', { events, selectedCategory, categories }) %>
+  </div>
 </div>
