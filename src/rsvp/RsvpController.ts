@@ -4,6 +4,13 @@ import type { ILoggingService } from "../service/LoggingService";
 import type { IAppBrowserSession } from "../session/AppSession";
 import { Result } from "../lib/result";
 
+// import custom error types
+import {
+  EventNotFoundError,
+  EventCancelledError,
+  EventPastError,
+} from "./errors";
+
 // Controller interface for rsvp
 export interface IRsvpController {
   toggleRSVP(res: Response, eventId: string, userId: string, session: IAppBrowserSession): Promise<void>;
@@ -13,6 +20,7 @@ export interface IRsvpController {
   getEventOwnerId(eventId: string): Promise<Result<string | null, Error>>;
   getUserRsvpStatus(res: Response, eventId: string, userId: string): Promise<void>;
   getAttendeeCount(res: Response, eventId: string): Promise<void>;
+  getRsvpButtonPartial(res: Response, eventId: string, userId: string): Promise<void>; 
 }
 
 class RsvpController implements IRsvpController {
@@ -23,15 +31,13 @@ class RsvpController implements IRsvpController {
 
   // Maps service errors to HTTP status codes
   private mapErrorStatus(error: Error): number {
-    const message = error.message.toLowerCase(); // normalize messages
-
-    if(message.includes("event not found")) return 404;
-    if(message.includes("not allowed")) return 403;
-    if(message.includes("validation")) return 400; // bad input data
-    if(message.includes("full")) return 409; // event capacity reached
-
-    // default fallback for unexpected errors
-    return 500;
+    // error type handling
+    if(error instanceof EventNotFoundError) return 404;   // resource missing
+    if(error instanceof EventCancelledError) return 404;  // permanently gone (cancelled)
+    if(error instanceof EventPastError) return 400;       // invalid request for past event
+    if(error.message.toLowerCase().includes("full")) return 409;      // capacity conflict
+    if(error.message.toLowerCase().includes("not allowed")) return 403; // permission issue
+    return 500; // Unexpected server failure/default fallback for unexpected errors
   }
 
   async toggleRSVP(
@@ -60,9 +66,18 @@ class RsvpController implements IRsvpController {
       `RSVP toggled for user=${userId} event=${eventId}` // successful login
     );
 
-    // send success response status code
-    res.status(200).json({
-      success: true,
+    // after successful toggle, get updated data to render HTMX partial
+    const rsvpResult = await this.service.getUserRsvp(eventId, userId);
+    const countResult = await this.service.countGoing(eventId);
+    const userStatus = rsvpResult.ok ? rsvpResult.value?.status : null; // if RSVP fetch succeeded, get the user's status (or undefined if missing), otherwise null
+    const attendeeCount = countResult.ok ? countResult.value : 0; // if attendee count fetch succeeded, use the count, otherwise default to 0
+
+    // render the button partial (no layout, just the fragment)
+    res.render("partials/rsvp-button", {
+      eventId,
+      userStatus,
+      attendeeCount,
+      layout: false,
     });
   }
 
@@ -108,10 +123,15 @@ class RsvpController implements IRsvpController {
     const event = result.value;
     const rsvpResult = await this.service.getUserRsvp(eventId, currentUserId);
     const userRsvp = rsvpResult.ok ? rsvpResult.value : null;
+
+    const countResult = await this.service.countGoing(eventId); // fetch attendee count
+    const attendeeCount = countResult.ok ? countResult.value : 0;
+
     res.render("events/show", {
       session,
       event,
       userRsvp,
+      attendeeCount,
       error: null,
     });
   }
@@ -179,6 +199,25 @@ class RsvpController implements IRsvpController {
       return;
     }
     res.json({ count: result.value });
+  }
+
+  // New method to serve the RSVP button partial (for initial load and HTMX)
+  async getRsvpButtonPartial(
+    res: Response,
+    eventId: string,
+    userId: string
+  ): Promise<void> {
+    const rsvpResult = await this.service.getUserRsvp(eventId, userId);
+    const countResult = await this.service.countGoing(eventId);
+    const userStatus = rsvpResult.ok ? rsvpResult.value?.status : null;
+    const attendeeCount = countResult.ok ? countResult.value : 0;
+
+    res.render("partials/rsvp-button", {
+      eventId,
+      userStatus,
+      attendeeCount,
+      layout: false,
+    });
   }
 }
 
