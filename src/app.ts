@@ -4,7 +4,7 @@ import session from "express-session";
 import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
 import { EventSearchController } from './events/EventSearchController';
-import { SavedEventController } from './savedEvents/SavedEventController'; // Added missing import
+import { SavedEventController } from './savedEvents/SavedEventController';
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -357,7 +357,6 @@ class ExpressApp implements IApp {
       asyncHandler(async (req, res) => {
         if (!this.requireAuthenticated(req, res)) return;
 
-        // Fixed: declared store and user
         const store = sessionStore(req);
         const user = getAuthenticatedUser(store);
         
@@ -564,10 +563,4 @@ export function CreateApp(
   commentController?: any,
 ): IApp {
   return new ExpressApp(authController, archiveController, attendeeController, logger, eventController, rsvpController, commentController);
-  rsvpController: IRsvpController,
-  attendeeController: IAttendeeController,  
-  eventController: IDashboardController,
-  archiveController: IArchiveController,
-): IApp {
-  return new ExpressApp(authController, eventController, logger);
 }
