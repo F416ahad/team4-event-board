@@ -1,3 +1,4 @@
+// src/composition.ts
 import { CreateAdminUserService } from "./auth/AdminUserService";
 import { CreateAuthController } from "./auth/AuthController";
 import { CreateAuthService } from "./auth/AuthService";
@@ -14,8 +15,9 @@ import * as eventController from "./controllers/eventController.js";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
+  const prisma = new PrismaClient();
 
-  // Authentication & authorization wiring
+  // ── Auth wiring ───────────────────────────────────────────────────
   const authUsers = CreateInMemoryUserRepository();
   const passwordHasher = CreatePasswordHasher();
   const authService = CreateAuthService(authUsers, passwordHasher);

@@ -1,43 +1,55 @@
-<div class="container">
-    <h1>Upcoming Events</h1>
+<%# 
+  Events list page.
+  Shows all events with links to view details.
+  Uses Tailwind CSS classes matching the auth templates.
+%>
 
-    <form action="/events" method="GET" class="filter-form">
-        <div class="filter-group">
-            <label for="category">Category:</label>
-            <select name="category" id="category">
-                <option value="all">All Categories</option>
-                <option value="Academic" <%= filters.category === 'Academic' ? 'selected' : '' %>>Academic</option>
-                <option value="Social" <%= filters.category === 'Social' ? 'selected' : '' %>>Social</option>
-            </select>
+<section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
+  <h1 class="text-3xl font-bold text-slate-900 mb-3">All Events</h1>
+  <p class="text-slate-500">
+    Browse events and click "View Details" to RSVP or leave comments.
+  </p>
+</section>
+
+<%# Display any page-level error (e.g., failed to load events) %>
+<% if (typeof error !== 'undefined' && error) { %>
+  <%- include("../partials/error", { message: error }) %>
+<% } %>
+
+<%# Create new event button (visible only for users with staff/admin role) %>
+<div class="mb-5 text-right">
+  <a href="/events/new" class="inline-block px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
+    + Create New Event
+  </a>
+</div>
+
+<%# Events list using same card style as existing users list %>
+<div class="grid gap-4">
+  <% if (events && events.length) { %>
+    <% events.forEach(event => { %>
+      <div class="flex items-center justify-between gap-4 p-5 border border-slate-200 rounded-xl bg-white shadow-md">
+        <div>
+          <h2 class="text-xl font-semibold text-slate-900"><%= event.title %></h2>
+          <p class="text-sm text-slate-500 mt-1">
+            <strong>Date:</strong> <%= new Date(event.date).toLocaleString() %>
+          </p>
+          <p class="text-sm text-slate-500">
+            <strong>Status:</strong> 
+            <span class="capitalize <%= event.status === 'cancelled' ? 'text-red-600' : 'text-green-600' %>">
+              <%= event.status %>
+            </span>
+          </p>
         </div>
-
-        <div class="filter-group">
-            <label for="timeframe">Timeframe:</label>
-            <select name="timeframe" id="timeframe">
-                <option value="all-upcoming">All Upcoming</option>
-                <option value="this-week" <%= filters.timeframe === 'this-week' ? 'selected' : '' %>>This Week</option>
-                <option value="this-weekend" <%= filters.timeframe === 'this-weekend' ? 'selected' : '' %>>This Weekend</option>
-            </select>
+        <div>
+          <a href="/events/<%= event.id %>" class="px-4 py-2 rounded-lg bg-slate-600 text-white font-medium hover:bg-slate-700">
+            View Details
+          </a>
         </div>
-
-        <button type="submit">Apply Filters</button>
-        <a href="/events" class="clear-filters">Clear All</a>
-    </form>
-
-    <hr>
-
-    <div class="event-list">
-        <% if (events.length > 0) { %>
-            <% events.forEach(event => { %>
-                <div class="event-card">
-                    <h3><%= event.title %></h3>
-                    <p><strong>Category:</strong> <%= event.category %></p>
-                    <p><strong>Date:</strong> <%= new Date(event.startDatetime).toLocaleString() %></p>
-                    <a href="/events/<%= event.id %>">View Details</a>
-                </div>
-            <% }) %>
-        <% } else { %>
-            <p>No published events found matching those filters.</p>
-        <% } %>
+      </div>
+    <% }); %>
+  <% } else { %>
+    <div class="p-6 text-center border border-slate-200 rounded-xl bg-slate-50">
+      <p class="text-slate-500">No events found. Create one to get started!</p>
     </div>
+  <% } %>
 </div>

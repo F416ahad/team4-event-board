@@ -3,6 +3,20 @@ import type { CommentRepository } from "./CommentRepository";
 import type { Comment, CommentWithPermissions } from "./Comment";
 import type { Event } from "../rsvp/rsvp.ts";
 
+// import custom error types
+import {
+  CommentEmptyError,
+  CommentTooLongError,
+  UnauthorizedDeleteError,
+  CommentNotFoundError,
+  CommentAlreadyDeletedError,
+} from "./errors";
+
+// import custom errors for rsvp
+import {
+  EventNotFoundError,
+} from "../rsvp/errors";
+
 export class CommentService {
     constructor(
         private readonly commentRepo: CommentRepository,
@@ -18,19 +32,22 @@ export class CommentService {
 
         if(!content.trim()) {
         
-            return Err(new Error("Comment cannot be empty"));
+            return Err(new CommentEmptyError());
         }
         if(content.length > 500) 
         {
-            return Err(new Error("Comment too long (max 500 characters)"));
+            return Err(new CommentTooLongError());
         }
 
         // checks to see if event actually exists
         const eventResult = await this.getEventById(eventId);
 
-        if(!eventResult.ok) return Err(eventResult.value);
+        if(!eventResult.ok) 
+        {
+            return Err(eventResult.value as Error);
+        }
 
-        if(!eventResult.value) return Err(new Error("Event not found"));
+        if(!eventResult.value) return Err(new EventNotFoundError());
 
         const commentData = {
             eventId,
@@ -51,7 +68,11 @@ export class CommentService {
 
         const result = await this.commentRepo.getCommentsByEvent(eventId);
 
-        if(!result.ok) return Err(result.value);
+        if(!result.ok) 
+        {
+            // result.value is Error because ok === false
+            return Err(result.value as Error);
+        }
 
         // creates a new object with the same fields as comment, with the addition of the canDelete field
         const commentsWithPerms = result.value.map(comment => ({
@@ -76,24 +97,32 @@ export class CommentService {
 
         const commentResult = await this.commentRepo.findCommentById(commentId);
 
-        if(!commentResult.ok) return Err(commentResult.value);
+        if(!commentResult.ok) 
+        {
+            // commentResult.value is Error because ok === false
+            return Err(commentResult.value as Error);
+        }
 
         const comment = commentResult.value;
 
-        if(!comment) return Err(new Error("Comment not found"));
+        if(!comment) return Err(new CommentNotFoundError());
 
         const canDelete = this.canDeleteComment(comment, currentUserId, eventOwnerId, currentUserRole);
 
         if(!canDelete) 
         {
-            return Err(new Error("You do not have permission to delete this comment"));
+            return Err(new UnauthorizedDeleteError());
         }
 
         const deleteResult = await this.commentRepo.deleteComment(commentId);
 
-        if(!deleteResult.ok) return Err(deleteResult.value);
+        if(!deleteResult.ok) 
+        {
+            // deleteResult.value is Error because ok === false
+            return Err(deleteResult.value as Error);
+        }
 
-        if(!deleteResult.value) return Err(new Error("Comment already deleted"));
+        if(!deleteResult.value) return Err(new CommentAlreadyDeletedError());
 
         return Ok(undefined);
     }
@@ -106,7 +135,7 @@ export class CommentService {
     ): 
     boolean
     {
-        if(!currentUserId) return false; // ff user not logged in, can't delete
+        if(!currentUserId) return false; // if user not logged in, can't delete
         if(currentUserRole === "admin") return true; // admins can delete any comment
         if(eventOwnerId && currentUserId === eventOwnerId) return true; // event owner can delete comments on their event
         if(comment.userId === currentUserId) return true; // comment author can delete their own comment

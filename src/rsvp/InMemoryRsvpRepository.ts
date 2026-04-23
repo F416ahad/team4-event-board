@@ -39,6 +39,7 @@ class InMemoryRsvpRepository implements RSVPRepository {
     }
   }
 
+  // HIGHLIGHT
   async addRSVP(
     eventId: string,
     userId: string,
