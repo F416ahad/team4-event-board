@@ -3,6 +3,20 @@ import type { CommentRepository } from "./CommentRepository";
 import type { Comment, CommentWithPermissions } from "./Comment";
 import type { Event } from "../rsvp/rsvp.ts";
 
+// import custom error types
+import {
+  CommentEmptyError,
+  CommentTooLongError,
+  UnauthorizedDeleteError,
+  CommentNotFoundError,
+  CommentAlreadyDeletedError,
+} from "./errors";
+
+// import custom errors for rsvp
+import {
+  EventNotFoundError,
+} from "../rsvp/errors";
+
 export class CommentService {
     constructor(
         private readonly commentRepo: CommentRepository,
@@ -18,11 +32,11 @@ export class CommentService {
 
         if(!content.trim()) {
         
-            return Err(new Error("Comment cannot be empty"));
+            return Err(new CommentEmptyError());
         }
         if(content.length > 500) 
         {
-            return Err(new Error("Comment too long (max 500 characters)"));
+            return Err(new CommentTooLongError());
         }
 
         // checks to see if event actually exists
@@ -33,7 +47,7 @@ export class CommentService {
             return Err(eventResult.value as Error);
         }
 
-        if(!eventResult.value) return Err(new Error("Event not found"));
+        if(!eventResult.value) return Err(new EventNotFoundError());
 
         const commentData = {
             eventId,
@@ -91,13 +105,13 @@ export class CommentService {
 
         const comment = commentResult.value;
 
-        if(!comment) return Err(new Error("Comment not found"));
+        if(!comment) return Err(new CommentNotFoundError());
 
         const canDelete = this.canDeleteComment(comment, currentUserId, eventOwnerId, currentUserRole);
 
         if(!canDelete) 
         {
-            return Err(new Error("You do not have permission to delete this comment"));
+            return Err(new UnauthorizedDeleteError());
         }
 
         const deleteResult = await this.commentRepo.deleteComment(commentId);
@@ -108,7 +122,7 @@ export class CommentService {
             return Err(deleteResult.value as Error);
         }
 
-        if(!deleteResult.value) return Err(new Error("Comment already deleted"));
+        if(!deleteResult.value) return Err(new CommentAlreadyDeletedError());
 
         return Ok(undefined);
     }

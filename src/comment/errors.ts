@@ -16,3 +16,7 @@ export class UnauthorizedDeleteError extends Error {
 export class CommentNotFoundError extends Error {
   constructor() { super("Comment not found"); }
 }
+
+export class CommentAlreadyDeletedError extends Error {
+  constructor() { super("Comment already deleted"); }
+}
