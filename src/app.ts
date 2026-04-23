@@ -19,6 +19,10 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
+import { IRsvpController } from "./rsvp/waitlistController";
+import { IAttendeeController } from "./events/AttendeeController";
+import { IDashboardController } from "./event_dash/EventController";
+import { IArchiveController } from "./events/ArchiveController";
 // @ts-ignore
 import eventRoutes from './routes/eventRoutes.js';
 
@@ -42,6 +46,9 @@ class ExpressApp implements IApp {
     private readonly authController: IAuthController,
     private readonly eventController: any, 
     private readonly logger: ILoggingService,
+    private readonly eventController: IDashboardController,
+    private readonly rsvpController: IRsvpController,
+    // Added missing controllers as 'any' so TypeScript stops crashing
     private readonly eventController: any = null,
     private readonly rsvpController: any = null,
     private readonly commentController: any = null,
@@ -358,6 +365,15 @@ class ExpressApp implements IApp {
           return;
         }
 
+        await this.eventController.publishEvent(
+          res,
+          typeof req.params.id === "string" ? req.params.id : "",
+          user.userId,
+          user.role as "admin" | "staff" | "user",
+          htmx
+        );
+      })
+        // Fixed: replaced broken this.getParam
         const eventId = typeof req.params.eventId === "string" ? req.params.eventId : "";
         const browserSession = touchAppSession(store); 
 
@@ -406,6 +422,14 @@ class ExpressApp implements IApp {
         const store = sessionStore(req);
         const user = getAuthenticatedUser(store);
 
+        await this.eventController.cancelEvent(
+          res,
+          typeof req.params.id === "string" ? req.params.id : "",
+          user.userId,
+          user.role as "admin" | "staff" | "user",
+          htmx
+        );
+      })
         if(!user) {
           res.status(401).send("Unauthorized");
           return;

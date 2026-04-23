@@ -8,6 +8,9 @@ import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
+import { EventService }from "./rsvp/waitlistService";
+import { CreateRsvpController } from "./rsvp/waitlistController";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 // IMPORT event controller
 // @ts-ignore
@@ -24,6 +27,9 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  // Pass eventController as the second argument to match CreateApp signature
-  return CreateApp(authController, eventController, resolvedLogger);
+  const rsvpService = new EventService(prisma);
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
+  
+
+  return CreateApp(authController, resolvedLogger, rsvpController, rsvpService, adminUserService, authService);
 }
