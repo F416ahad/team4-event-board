@@ -19,6 +19,9 @@ import {
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
 import { IRsvpController } from "./rsvp/waitlistController";
+import { IAttendeeController } from "./events/AttendeeController";
+import { IDashboardController } from "./event_dash/EventController";
+import { IArchiveController } from "./events/ArchiveController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -40,7 +43,7 @@ class ExpressApp implements IApp {
     private readonly archiveController: IArchiveController,
     private readonly attendeeController: IAttendeeController,
     private readonly logger: ILoggingService,
-    private readonly eventController: IEventController,
+    private readonly eventController: IDashboardController,
     private readonly rsvpController: IRsvpController,
   ) {
     this.app = express();
@@ -346,6 +349,9 @@ export function CreateApp(
   authController: IAuthController,
   logger: ILoggingService,
   rsvpController: IRsvpController,
+  attendeeController: IAttendeeController,  
+  eventController: IDashboardController,
+  archiveController: IArchiveController,
 ): IApp {
-  return new ExpressApp(authController, logger, rsvpController);
+  return new ExpressApp(authController, logger, rsvpController, attendeeController, eventController, archiveController);
 }
