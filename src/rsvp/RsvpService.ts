@@ -1,6 +1,13 @@
 import { Ok, Err, type Result } from "../lib/result";
 import type { RSVPRepository } from "./RsvpRepository";
 import type { RSVPStatus, Event, RSVP } from "./rsvp.ts";
+// import custom errors
+import {
+  EventNotFoundError,
+  EventCancelledError,
+  EventPastError,
+  RsvpToggleFailedError,
+} from "./errors";
 
 export class RsvpService {
   constructor(private readonly repo: RSVPRepository) {}
@@ -24,12 +31,12 @@ export class RsvpService {
 
       const event = eventResult.value;
 
-      if(!event) return Err(new Error("Event not found")); // check if event exists
+      if(!event) return Err(new EventNotFoundError()); // check if event exists
 
       // reject if event is cancelled
       if(event.status === "cancelled") 
       {
-        return Err(new Error("Cannot RSVP to a cancelled event"));
+        return Err(new EventCancelledError());
     
       }
 
@@ -42,7 +49,7 @@ export class RsvpService {
       // 2026-04-16T22:07:52.000Z to 2026-04-16 (10 is exclusive)
       if(eventDate.toISOString().slice(0,10) < today.toISOString().slice(0,10)) 
       {
-        return Err(new Error("Cannot RSVP to a past event"));
+        return Err(new EventPastError());
       }
 
       // Get rsvp for user
@@ -130,7 +137,7 @@ export class RsvpService {
     } 
     catch 
     {
-      return Err(new Error("Failed to toggle RSVP")); // catch unexpected errors
+      return Err(new RsvpToggleFailedError()); // catch unexpected errors
     }
   }
 

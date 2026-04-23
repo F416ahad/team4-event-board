@@ -12,6 +12,10 @@ import { EventService }from "./rsvp/waitlistService";
 import { CreateRsvpController } from "./rsvp/waitlistController";
 import { PrismaClient, Prisma } from "@prisma/client";
 
+// IMPORT event controller
+// @ts-ignore
+import * as eventController from "./controllers/eventController.js";
+
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
   const prisma = new PrismaClient();

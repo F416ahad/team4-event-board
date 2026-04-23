@@ -3,6 +3,14 @@ import type { CommentService } from "./CommentService";
 import type { ILoggingService } from "../service/LoggingService";
 import type { IAppBrowserSession } from "../session/AppSession";
 
+// import custom error types 
+import {
+  CommentEmptyError,
+  CommentTooLongError,
+  UnauthorizedDeleteError,
+  CommentNotFoundError,
+  CommentAlreadyDeletedError
+} from "./errors";
 export interface ICommentController {
     postComment(
         res: Response,
@@ -54,8 +62,18 @@ class CommentController implements ICommentController {
         if(!result.ok) 
         {
             const error = result.value as Error;
+
+            // map specific errors to correct status codes 
+            let status = 500; // default for unexpected errors
+
+            if(error instanceof CommentEmptyError) status = 400; // bad request - empty content
+            else if(error instanceof CommentTooLongError) status = 400; // bad request - too long
+            else if(error instanceof UnauthorizedDeleteError) status = 403; // forbidden (unlikely in post, but still handled)
+            else if(error instanceof CommentNotFoundError) status = 404; // Not found (parent comment missing?)
+            // no else – keep 500 for any unknown error type
+            
             this.logger.warn(`Comment post failed: ${error.message}`);
-            res.status(400).send(`<div class="error">${error.message}</div>`);
+            res.status(status).send(`<div class="error">${error.message}</div>`);
             return;
         }
 
@@ -78,8 +96,15 @@ class CommentController implements ICommentController {
         if(!result.ok) 
         {
             const error = result.value as Error;
+
+            let status = 500; // default for unexpected errors
+            
+            if(error instanceof CommentNotFoundError) status = 404; // not found
+            else if(error instanceof UnauthorizedDeleteError) status = 403; // forbidden
+            // CommentEmptyError / CommentTooLongError are not important for delete, but if they appear, they would be 400
+
             this.logger.warn(`Comment delete failed: ${error.message}`);
-            res.status(403).send(`<div class="error">${error.message}</div>`);
+            res.status(status).send(`<div class="error">${error.message}</div>`);
             return;
         }
 
