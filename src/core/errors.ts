@@ -17,8 +17,3 @@ export class UnauthorizedError extends DomainError {
     super("You do not have permission to view this event.", 403);
   }
 }
-export class InvalidFilterError extends DomainError {
-  constructor(field: string) {
-    super(`The filter value for ${field} is invalid.`, 400);
-  }
-}
