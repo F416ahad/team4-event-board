@@ -17,6 +17,39 @@
   <%- include("partials/error", { message: pageError }) %>
 <% } %>
 
+<% if (dashboard) { %>
+<section class="max-w-5xl mt-5 p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
+  <h2 class="text-xl font-semibold mb-4">Your Events</h2>
+
+  <% for (const [status, events] of Object.entries(dashboard)) { %>
+    <div class="mb-6">
+      <h3 class="text-lg font-semibold capitalize mb-2"><%= status %></h3>
+
+      <% if (events.length === 0) { %>
+        <p class="text-slate-500">No events</p>
+      <% } %>
+
+      <% events.forEach(e => { %>
+        <div class="border p-4 rounded-lg mb-2">
+          <div class="flex justify-between items-center">
+            <div>
+              <strong class="text-slate-800"><%= e.title %></strong>
+              <p class="text-sm text-slate-500">
+                <%= e.category %> • <%= e.date.toDateString() %>
+              </p>
+            </div>
+
+            <div class="text-sm text-slate-600">
+              <%= e.attendingCount %> / <%= e.capacity %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+<% } %>
+
 <section class="max-w-3xl p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
   <div class="mb-4">
     <h2 class="text-xl font-semibold mb-2">Getting Started</h2>
@@ -64,3 +97,19 @@
     </div>
   </div>
 </section>
+
+<% events.forEach(e => { %>
+  <a href="/events/<%= e.id %>" class="block border p-4 rounded-lg mb-2 hover:bg-slate-50 transition-colors no-underline">
+    <div class="flex justify-between items-center">
+      <div>
+        <strong class="text-slate-800"><%= e.title %></strong>
+        <p class="text-sm text-slate-500">
+          <%= e.category %> • <%= e.date.toDateString() %>
+        </p>
+      </div>
+      <div class="text-sm text-slate-600">
+        <%= e.attendingCount %> / <%= e.capacity %>
+      </div>
+    </div>
+  </a>
+<% }) %>

@@ -1,3 +1,4 @@
+// src/composition.ts
 import { CreateAdminUserService } from "./auth/AdminUserService";
 import { CreateAuthController } from "./auth/AuthController";
 import { CreateAuthService } from "./auth/AuthService";
@@ -7,40 +8,24 @@ import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
-
-// rsvp imports
-import { RsvpService } from "./rsvp/RsvpService";
-import { CreateRsvpController } from "./rsvp/RsvpController";
-import { createInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
-
-// comment imports
-import { CommentService } from "./comment/CommentService";
-import { CreateCommentController } from "./comment/CommentController";
-import { createInMemoryCommentRepository } from "./comment/InMemoryCommentRepository";
-
+import {CreateRsvpService }from "./rsvp/waitlistService";
+import { CreateRsvpController } from "./rsvp/waitlistController";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
+  const prisma = new PrismaClient();
 
-  // Authentication & authorization wiring
+  // ── Auth wiring ───────────────────────────────────────────────────
   const authUsers = CreateInMemoryUserRepository();
   const passwordHasher = CreatePasswordHasher();
   const authService = CreateAuthService(authUsers, passwordHasher);
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-    // rsvp wiring
-    const rsvpRepo = createInMemoryRsvpRepository();
-    const rsvpService = new RsvpService(rsvpRepo);
-    const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
+  const rsvpService = CreateRsvpService(prisma);
+  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
+  
 
-    // comment wiring (depends on rsvpService for event lookup)
-    const commentRepo = createInMemoryCommentRepository();
-    const commentService = new CommentService(
-        commentRepo,
-        async (eventId: string) => await rsvpService.getEvent(eventId)
-    );
-    const commentController = CreateCommentController(commentService, resolvedLogger);
-
-  return CreateApp(authController, resolvedLogger, rsvpController, commentController);
+  return CreateApp(authController, resolvedLogger, rsvpController);
 }
