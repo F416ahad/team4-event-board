@@ -285,6 +285,40 @@ class ExpressApp implements IApp {
     // Add these two routes inside registerRoutes() in app.ts
 // Place them alongside the existing /events/:id and /dashboard routes
 
+        // get user from session
+        const user = getAuthenticatedUser(store);
+
+        if(!user)
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        await this.rsvpController.createEvent(res, title, capacity, browserSession, user.userId); // create event
+      }),
+    );
+
+    this.app.get(
+      "/events/:eventId/rsvp/partial",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return;
+
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+        
+        const eventId = this.getParam(req.params.eventId);
+        await this.rsvpController.getRsvpButtonPartial(res, eventId, user.userId);
+      })
+    );
+
+
+    // toggle rsvp 
     this.app.post(
       "/events/:id/publish",
       asyncHandler(async (req, res) => {
