@@ -22,3 +22,10 @@ export const showEventDetail = async (req, res) => {
     user: currentUser 
   });
 };
+
+if (req.headers['hx-request']) {
+    return res.render('partials/event-list', { 
+        events: result.value || [], 
+        layout: false 
+    });
+}

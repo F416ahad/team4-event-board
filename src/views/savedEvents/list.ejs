@@ -33,3 +33,25 @@
     <% } %>
   </div>
 </div>
+
+<script>
+  async function unsaveEvent(eventId) {
+    if (!confirm('Remove this event from your saved list?')) return;
+
+    try {
+      const response = await fetch(`/events/${eventId}/save`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        // Refresh the page to show the updated list
+        window.location.reload();
+      } else {
+        alert('Failed to remove event.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred.');
+    }
+  }
+</script>

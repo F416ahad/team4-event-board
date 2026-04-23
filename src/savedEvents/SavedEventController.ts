@@ -2,13 +2,14 @@
 import { Request, Response } from 'express';
 import { SavedEventService } from './SavedEventService';
 import { getAllEvents } from '../repositories/InMemoryEventRepository';
-// Fixed Import: brought in AppSessionStore type
 import { getAuthenticatedUser, type AppSessionStore } from '../session/AppSession';
 
 export const SavedEventController = {
   
   /**
    * POST: Toggles the save status of an event.
+   * Requirement: "updating inline without a full page reload"
+   * So we return a simple 200 OK response instead of a redirect.
    */
   toggleSave: async (req: Request, res: Response) => {
     // 1. Parse request: Get user and event ID

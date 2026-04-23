@@ -1,4 +1,6 @@
-<%- include('../partials/header') %> <main class="container">
+<%- include('../partials/header') %> 
+
+<main class="container">
     <article class="event-detail-page">
         <header>
             <h1><%= event.title %></h1>
@@ -19,15 +21,30 @@
         <hr>
 
         <div class="user-actions">
-            <% /* Sprint 1 Logic: Only show Admin/Organizer buttons if they own the event */ %>
-            <% if (user && (user.id === event.organizerId || user.role === 'admin')) { %>
+            <% /* Feature 2: Organizer/Admin Controls */ %>
+            <% if (session?.user && (session.user.id === event.organizerId || session.user.role === 'admin')) { %>
                 <div class="admin-panel">
                     <p><em>Organizer View</em></p>
                     <a href="/events/<%= event.id %>/edit" class="btn btn-edit">Edit Event</a>
                     <button class="btn btn-cancel">Cancel Event</button>
                 </div>
             <% } else { %>
-                <button class="btn btn-rsvp">RSVP for this Event</button>
+                <% /* Sprint 2: HTMX RSVP Section */ %>
+                <div id="rsvp-section">
+                    <p><strong>Current Attendees:</strong> <span id="count"><%= event.attendeeCount || 0 %></span></p>
+                    
+                    <% if (session?.user) { %>
+                        <button 
+                            hx-post="/events/<%= event.id %>/rsvp" 
+                            hx-target="#rsvp-section" 
+                            hx-swap="outerHTML"
+                            class="btn btn-rsvp">
+                            RSVP for this Event
+                        </button>
+                    <% } else { %>
+                        <p class="text-sm italic">Please <a href="/login">login</a> to RSVP.</p>
+                    <% } %>
+                </div>
             <% } %>
         </div>
     </article>

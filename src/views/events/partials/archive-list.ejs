@@ -1,0 +1,30 @@
+<% if (events.length === 0) { %>
+  <p class="text-gray-400 italic">No past events found.</p>
+<% } else { %>
+  <ul class="space-y-4">
+    <% events.forEach(event => { %>
+      <li class="border rounded p-4 bg-gray-50 opacity-75">
+        <div class="flex justify-between items-start">
+          <div>
+            <h2 class="font-semibold text-gray-700"><%= event.title %></h2>
+            <p class="text-sm text-gray-500"><%= event.location %></p>
+          </div>
+          <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 capitalize">
+            <%= event.category %>
+          </span>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">
+          Ended <%= new Date(event.endTime).toLocaleString() %>
+        </p>
+        <button
+          hx-get="/events/<%= event.id %>/attendees"
+          hx-target="#attendees-<%= event.id %>"
+          hx-swap="innerHTML"
+          class="text-xs text-blue-600 hover:underline mt-2 inline-block cursor-pointer bg-transparent border-0 p-0">
+          View Attendees
+        </button>
+        <div id="attendees-<%= event.id %>" class="mt-2"></div>
+      </li>
+    <% }) %>
+  </ul>
+<% } %>
