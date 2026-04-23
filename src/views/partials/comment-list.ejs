@@ -1,0 +1,57 @@
+<%# 
+  Partial: Comment list and post form.
+  Used by HTMX to refresh comments after post/delete.
+  Expects: comments (array), eventId, currentUserId, eventOwnerId, session.
+%>
+
+<div id="comment-list-container">
+  <%# Post comment form %>
+  <form id="comment-form" 
+        class="mb-6"
+        hx-post="/events/<%= eventId %>/comments"
+        hx-target="#comment-list-container"
+        hx-swap="outerHTML"
+        hx-vals='{"userId":"<%= currentUserId %>","displayName":"<%= session.authenticatedUser?.displayName || 'Anonymous' %>"}'>
+    <div class="mb-3">
+      <textarea name="content" rows="3" placeholder="Write a comment... (max 500 chars)" maxlength="500" required
+                class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"></textarea>
+      <p class="text-xs text-slate-400 mt-1">Max 500 characters</p>
+    </div>
+    <button type="submit" 
+            class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
+      Post Comment
+    </button>
+  </form>
+
+  <%# Comments list %>
+  <div class="space-y-4">
+    <% if (comments && comments.length) { %>
+      <% comments.forEach(comment => { %>
+        <div class="p-4 border border-slate-200 rounded-xl bg-slate-50" id="comment-<%= comment.id %>">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <strong class="text-slate-900"><%= comment.displayName %></strong>
+              <span class="text-xs text-slate-400 ml-2">
+                <%= new Date(comment.createdAt).toLocaleString() %>
+              </span>
+            </div>
+            <% if (comment.canDelete) { %>
+              <button class="delete-comment px-3 py-1 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700"
+                      hx-delete="/events/<%= eventId %>/comments/<%= comment.id %>"
+                      hx-target="#comment-list-container"
+                      hx-swap="outerHTML"
+                      hx-vals='{"currentUserId":"<%= currentUserId %>","currentUserRole":"<%= session.authenticatedUser?.role %>","eventOwnerId":"<%= eventOwnerId %>"}'>
+                Delete
+              </button>
+            <% } %>
+          </div>
+          <p class="text-slate-700 whitespace-pre-wrap"><%= comment.content %></p>
+        </div>
+      <% }); %>
+    <% } else { %>
+      <div class="py-8 text-center text-slate-400 border-t border-slate-200">
+        No comments yet. Be the first to comment!
+      </div>
+    <% } %>
+  </div>
+</div>

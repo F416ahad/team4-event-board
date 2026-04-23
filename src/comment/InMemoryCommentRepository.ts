@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto"; // for generating unique ids
+import { randomUUID } from "node:crypto";
 import { Err, Ok, type Result } from "../lib/result";
 import type { Comment } from "./Comment";
 import type { CommentRepository } from "./CommentRepository";

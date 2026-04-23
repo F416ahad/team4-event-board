@@ -8,17 +8,16 @@ export class InMemoryRsvpRepository implements IRsvpRepository {
     return [...this.rsvps.values()].filter((r) => r.eventId === eventId)
   }
 
-  seed(rsvps: Omit<Rsvp, 'id' | 'createdAt'>[]): void {
-    for (const input of rsvps) {
-      const rsvp: Rsvp = {
-        ...input,
-        id: randomUUID(),
-        createdAt: new Date(),
-      }
-      this.rsvps.set(rsvp.id, rsvp)
+  seed(rsvps: (Omit<Rsvp, 'id' | 'createdAt'> & { id?: string; createdAt?: Date })[]): void {
+  for (const input of rsvps) {
+    const rsvp: Rsvp = {
+      ...input,
+      id: input.id ?? randomUUID(),
+      createdAt: input.createdAt ?? new Date(),
     }
+    this.rsvps.set(rsvp.id, rsvp)
   }
-}
+}}
 
 export function CreateInMemoryRsvpRepository(): InMemoryRsvpRepository {
   return new InMemoryRsvpRepository()

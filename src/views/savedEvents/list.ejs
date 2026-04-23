@@ -21,7 +21,8 @@
               <a href="/events/<%= event.id %>" style="margin-right: 15px; color: #007bff;">View Details</a>
               
               <button 
-                onclick="unsaveEvent('<%= event.id %>')" 
+                hx-post="/events/<%= event.id %>/save" 
+                hx-swap="outerHTML"
                 style="background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
                 Remove from Saved
               </button>
