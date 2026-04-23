@@ -298,7 +298,7 @@ class ExpressApp implements IApp {
         const user = getAuthenticatedUser(store)!;
         const htmx = this.isHtmxRequest(req);
 
-        await this.eventController.publishEventFromForm(
+        await this.eventController.publishEvent(
           res,
           typeof req.params.id === "string" ? req.params.id : "",
           user.userId,
@@ -318,7 +318,7 @@ class ExpressApp implements IApp {
         const user = getAuthenticatedUser(store)!;
         const htmx = this.isHtmxRequest(req);
 
-        await this.eventController.cancelEventFromForm(
+        await this.eventController.cancelEvent(
           res,
           typeof req.params.id === "string" ? req.params.id : "",
           user.userId,
