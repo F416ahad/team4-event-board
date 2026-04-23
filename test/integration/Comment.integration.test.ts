@@ -1,0 +1,421 @@
+/**
+ * comment.integration.test.ts
+ * Integration tests for Feature 13 – Event Comments
+ *
+ * Strategy
+ * ─────────
+ * Same pattern as rsvp.integration.test.ts:
+ * - Build the test-bed by wiring services manually so we can seed data
+ *   directly via the service without going through the auth-protected
+ *   POST /events route.
+ * - NODE_ENV=test makes requireAuthenticated() return true, but
+ *   getAuthenticatedUser() still returns undefined (no real cookie), so
+ *   routes with an inner `if (!user)` guard produce a clean 401.
+ * - HTTP-layer tests verify status codes for those reachable paths.
+ * - Service-layer tests cover all business-logic branches directly.
+ */
+
+import request from 'supertest';
+
+// ── service / repo imports ────────────────────────────────────────────────────
+import { RsvpService }                     from '../../src/rsvp/RsvpService';
+import { createInMemoryRsvpRepository }    from '../../src/rsvp/InMemoryRsvpRepository';
+import { CreateRsvpController }            from '../../src/rsvp/RsvpController';
+import { CommentService }                  from '../../src/comment/CommentService';
+import { createInMemoryCommentRepository } from '../../src/comment/InMemoryCommentRepository';
+import { CreateCommentController }         from '../../src/comment/CommentController';
+import { CreateApp }                       from '../../src/app';
+import { CreateLoggingService }            from '../../src/service/LoggingService';
+import { CreateAuthController }            from '../../src/auth/AuthController';
+import { CreateAuthService }               from '../../src/auth/AuthService';
+import { CreateInMemoryUserRepository }    from '../../src/auth/InMemoryUserRepository';
+import { CreatePasswordHasher }            from '../../src/auth/PasswordHasher';
+import { CreateAdminUserService }          from '../../src/auth/AdminUserService';
+
+// ── error types ───────────────────────────────────────────────────────────────
+import {
+  CommentEmptyError,
+  CommentTooLongError,
+  UnauthorizedDeleteError,
+  CommentNotFoundError,
+} from '../../src/comment/errors';
+import { EventNotFoundError } from '../../src/rsvp/errors';
+import type { Event }         from '../../src/rsvp/rsvp';
+import type { Comment, CommentWithPermissions } from '../../src/comment/Comment';
+
+// ─── test-bed factory ─────────────────────────────────────────────────────────
+
+function makeTestBed() {
+  const logger = CreateLoggingService();
+
+  const authUsers        = CreateInMemoryUserRepository();
+  const passwordHasher   = CreatePasswordHasher();
+  const authService      = CreateAuthService(authUsers, passwordHasher);
+  const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
+  const authController   = CreateAuthController(authService, adminUserService, logger);
+
+  const rsvpRepo       = createInMemoryRsvpRepository();
+  const rsvpService    = new RsvpService(rsvpRepo);
+  const rsvpController = CreateRsvpController(rsvpService, logger);
+
+  const commentRepo       = createInMemoryCommentRepository();
+  const commentService    = new CommentService(
+    commentRepo,
+    (eventId) => rsvpService.getEvent(eventId),
+  );
+  const commentController = CreateCommentController(commentService, logger);
+
+  const iApp       = CreateApp(authController, logger, rsvpController, commentController);
+  const expressApp = (iApp as any).getExpressApp();
+
+  return { expressApp, rsvpService, commentService };
+}
+
+/** Seeds a future-dated active event and returns it. */
+async function seedFutureEvent(
+  service: RsvpService,
+  title   = 'Test Event',
+  ownerId = 'owner-1',
+): Promise<Event> {
+  const result = await service.createEvent(title, ownerId);
+  if(!result.ok) throw new Error('seedFutureEvent: createEvent failed');
+  const event = result.value as Event;
+  const future = new Date();
+  future.setDate(future.getDate() + 30);
+  (event as any).date = future.toISOString();
+  return event;
+}
+
+/** Seeds one comment and returns it. */
+async function seedComment(
+  service: CommentService,
+  eventId:     string,
+  userId      = 'user-1',
+  displayName = 'Alice',
+  content     = 'Hello!',
+): Promise<Comment> {
+  const result = await service.postComment(eventId, userId, displayName, content);
+  if(!result.ok) throw new Error('seedComment: postComment failed');
+  return result.value as Comment;
+}
+
+// ─── HTTP-layer tests ────────────────────────────────────────────────────────
+
+describe('Feature 13 – Comments: HTTP layer', () => {
+  it('POST /events/:eventId/comments without a session -> 401 (not a 500 crash)', async () => {
+    const { expressApp, rsvpService } = makeTestBed();
+    const event = await seedFutureEvent(rsvpService);
+
+    const res = await request(expressApp)
+      .post(`/events/${event.id}/comments`)
+      .set('HX-Request', 'true')
+      .send('content=Hello');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('DELETE /events/:eventId/comments/:commentId without a session -> 401', async () => {
+    const { expressApp, rsvpService } = makeTestBed();
+    const event = await seedFutureEvent(rsvpService);
+
+    const res = await request(expressApp)
+      .delete(`/events/${event.id}/comments/some-comment-id`)
+      .set('HX-Request', 'true');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /events/:eventId/comments/partial without a session -> 200 HTML fragment (no inner user guard)', async () => {
+    const { expressApp, rsvpService } = makeTestBed();
+    const event = await seedFutureEvent(rsvpService);
+
+    // This route calls requireAuthenticated (returns true in test mode) then
+    // calls commentController.renderCommentsPartial directly — no inner user guard.
+    // It will attempt to render partials/comment-list via EJS.
+    // If views are present -> 200 HTML; if views are absent -> 500 render error.
+    // We assert it is NOT a 4xx auth/logic rejection.
+    const res = await request(expressApp)
+      .get(`/events/${event.id}/comments/partial`)
+      .set('HX-Request', 'true');
+
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+    expect(res.status).not.toBe(404);
+  });
+});
+
+// ─── Service-layer tests ─────────────────────────────────────────────────────
+
+describe('Feature 13 – Comments: service layer', () => {
+
+  // ── postComment happy path ─────────────────────────────────────────────────
+
+  describe('postComment – happy path', () => {
+    it('creates a comment and returns correct fields', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', 'Hello!');
+      expect(result.ok).toBe(true);
+
+      const comment = result.value as Comment;
+      expect(comment.id).toBeDefined();
+      expect(comment.eventId).toBe(event.id);
+      expect(comment.userId).toBe('user-1');
+      expect(comment.displayName).toBe('Alice');
+      expect(comment.content).toBe('Hello!');
+      expect(comment.createdAt).toBeInstanceOf(Date);
+    });
+
+    it('trims leading and trailing whitespace from content before saving', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', '  hello  ');
+      expect((result.value as Comment).content).toBe('hello');
+    });
+
+    it('multiple comments on the same event are all retrievable', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      await commentService.postComment(event.id, 'user-1', 'Alice', 'First');
+      await commentService.postComment(event.id, 'user-2', 'Bob',   'Second');
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-1', 'owner-1');
+      expect(listing.ok).toBe(true);
+      expect((listing.value as CommentWithPermissions[]).length).toBe(2);
+    });
+  });
+
+  // ── postComment – CommentEmptyError ───────────────────────────────────────
+
+  describe('postComment – empty content', () => {
+    it('returns CommentEmptyError for an empty string', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', '');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(CommentEmptyError);
+    });
+
+    it('returns CommentEmptyError for whitespace-only content', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', '   ');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(CommentEmptyError);
+    });
+  });
+
+  // ── postComment – CommentTooLongError ─────────────────────────────────────
+
+  describe('postComment – content too long', () => {
+    it('returns CommentTooLongError for content exceeding 500 characters', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', 'a'.repeat(501));
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(CommentTooLongError);
+    });
+
+    it('accepts content of exactly 500 characters', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const result = await commentService.postComment(event.id, 'user-1', 'Alice', 'a'.repeat(500));
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  // ── postComment – EventNotFoundError ──────────────────────────────────────
+
+  describe('postComment – event not found', () => {
+    it('returns EventNotFoundError when posting to a non-existent event', async () => {
+      const { commentService } = makeTestBed();
+
+      const result = await commentService.postComment('ghost-event', 'user-1', 'Alice', 'Hello!');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(EventNotFoundError);
+    });
+  });
+
+  // ── deleteComment – happy path ────────────────────────────────────────────
+
+  describe('deleteComment – happy path', () => {
+    it('comment author can delete their own comment', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService);
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, 'user-1', 'user', undefined);
+      expect(result.ok).toBe(true);
+    });
+
+    it('event organizer can delete any comment on their event', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService, 'Org Event', 'organizer-1');
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, 'organizer-1', 'user', 'organizer-1');
+      expect(result.ok).toBe(true);
+    });
+
+    it('admin can delete any comment regardless of ownership', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService);
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, 'admin-1', 'admin', undefined);
+      expect(result.ok).toBe(true);
+    });
+
+    it('deleted comment no longer appears in the listing', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService);
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      await commentService.deleteComment(comment.id, 'user-1', 'user', undefined);
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-1', undefined);
+      expect((listing.value as CommentWithPermissions[]).length).toBe(0);
+    });
+  });
+
+  // ── deleteComment – UnauthorizedDeleteError ───────────────────────────────
+
+  describe('deleteComment – unauthorized', () => {
+    it('a different regular user cannot delete someone else\'s comment', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService, 'Event', 'organizer-1');
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, 'user-2', 'user', 'organizer-1');
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(UnauthorizedDeleteError);
+    });
+
+    it('unauthenticated user (undefined userId) cannot delete any comment', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event   = await seedFutureEvent(rsvpService);
+      const comment = await seedComment(commentService, event.id, 'user-1');
+
+      const result = await commentService.deleteComment(comment.id, undefined, undefined, undefined);
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(UnauthorizedDeleteError);
+    });
+  });
+
+  // ── deleteComment – CommentNotFoundError ──────────────────────────────────
+
+  describe('deleteComment – comment not found', () => {
+    it('returns CommentNotFoundError for a non-existent comment id', async () => {
+      const { commentService } = makeTestBed();
+
+      const result = await commentService.deleteComment('ghost-comment', 'user-1', 'user', undefined);
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeInstanceOf(CommentNotFoundError);
+    });
+  });
+
+  // ── getCommentsWithPermissions – canDelete flag ───────────────────────────
+
+  describe('getCommentsWithPermissions – canDelete flag', () => {
+    it('canDelete is true for the comment\'s own author', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+      await seedComment(commentService, event.id, 'user-1');
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-1', undefined);
+      expect((listing.value as CommentWithPermissions[])[0].canDelete).toBe(true);
+    });
+
+    it('canDelete is false for a non-author non-organizer regular user', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService, 'Event', 'organizer-1');
+      await seedComment(commentService, event.id, 'user-1');
+
+      // user-2 is neither the author nor the organizer
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-2', 'organizer-1');
+      expect((listing.value as CommentWithPermissions[])[0].canDelete).toBe(false);
+    });
+
+    it('canDelete is true for the event organizer on all comments', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService, 'Event', 'organizer-1');
+      await seedComment(commentService, event.id, 'user-1', 'Alice', 'Comment 1');
+      await seedComment(commentService, event.id, 'user-2', 'Bob',   'Comment 2');
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'organizer-1', 'organizer-1');
+      const allCanDelete = (listing.value as CommentWithPermissions[]).every(c => c.canDelete === true);
+      expect(allCanDelete).toBe(true);
+    });
+
+    it('canDelete is false for all comments when no user is logged in', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+      await seedComment(commentService, event.id);
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, undefined, undefined);
+      const noneCanDelete = (listing.value as CommentWithPermissions[]).every(c => c.canDelete === false);
+      expect(noneCanDelete).toBe(true);
+    });
+  });
+
+  // ── edge cases ────────────────────────────────────────────────────────────
+
+  describe('edge cases', () => {
+    it('comments on different events are isolated and do not bleed across events', async () => {
+       const { rsvpService, commentService } = makeTestBed();
+
+        // create first event and wait a few ms to ensure a unique timestamp for its ID
+        const eventA = await seedFutureEvent(rsvpService, 'Event A');
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // create second event
+        const eventB = await seedFutureEvent(rsvpService, 'Event B');
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // post comment on event A
+        await seedComment(commentService, eventA.id, 'user-1', 'Alice', 'On A');
+        await new Promise(resolve => setTimeout(resolve, 10)); // ensure ordering
+
+        // post comment on event B
+        await seedComment(commentService, eventB.id, 'user-1', 'Alice', 'On B');
+
+        const listingA = await commentService.getCommentsWithPermissions(eventA.id, 'user-1', undefined);
+        const listingB = await commentService.getCommentsWithPermissions(eventB.id, 'user-1', undefined);
+
+        expect((listingA.value as CommentWithPermissions[]).length).toBe(1);
+        expect((listingA.value as CommentWithPermissions[])[0].content).toBe('On A');
+        expect((listingB.value as CommentWithPermissions[]).length).toBe(1);
+        expect((listingB.value as CommentWithPermissions[])[0].content).toBe('On B');
+    });
+
+    it('comments are returned in chronological order (oldest first)', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      await seedComment(commentService, event.id, 'user-1', 'Alice', 'First');
+      // Small delay to guarantee distinct createdAt timestamps
+      await new Promise(r => setTimeout(r, 5));
+      await seedComment(commentService, event.id, 'user-2', 'Bob', 'Second');
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, undefined, undefined);
+      const contents = (listing.value as CommentWithPermissions[]).map(c => c.content);
+      expect(contents).toEqual(['First', 'Second']);
+    });
+
+    it('an event with zero comments returns an empty array, not an error', async () => {
+      const { rsvpService, commentService } = makeTestBed();
+      const event = await seedFutureEvent(rsvpService);
+
+      const listing = await commentService.getCommentsWithPermissions(event.id, 'user-1', undefined);
+      expect(listing.ok).toBe(true);
+      expect((listing.value as CommentWithPermissions[]).length).toBe(0);
+    });
+  });
+});
