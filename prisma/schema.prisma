@@ -32,3 +32,18 @@ model User {
   rsvps    Rsvp[]
   comments Comment[]
 }
+
+model Event {
+  id               String    @id @default(uuid())
+  title            String
+  capacity         Int?
+  status           String    @default("active") // "active" | "cancelled"
+  date             DateTime
+  createdByUserId  String
+  createdBy        User      @relation("EventCreator", fields: [createdByUserId], references: [id])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  rsvps    Rsvp[]
+  comments Comment[]
+}
