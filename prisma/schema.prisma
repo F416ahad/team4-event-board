@@ -59,5 +59,17 @@ model Rsvp {
   user  User  @relation(fields: [userId], references: [id])
   event Event @relation(fields: [eventId], references: [id])
 
-  @@unique([userId, eventId])
+  @@unique([userId, eventId]) // One RSVP per user per event, each pair must be unique
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
 }
