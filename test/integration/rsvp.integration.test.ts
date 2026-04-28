@@ -23,10 +23,10 @@ import request from 'supertest';
 
 // ── service / repo imports ────────────────────────────────────────────────────
 import { RsvpService }                   from '../../src/rsvp/RsvpService';
-import { createInMemoryRsvpRepository }  from '../../src/rsvp/InMemoryRsvpRepository';
+import { createPrismaRsvpRepository }    from '../../src/rsvp/PrismaRsvpRepository';
 import { CreateRsvpController }          from '../../src/rsvp/RsvpController';
 import { CommentService }                from '../../src/comment/CommentService';
-import { createInMemoryCommentRepository } from '../../src/comment/InMemoryCommentRepository';
+import { createPrismaCommentRepository } from '../../src/comment/PrismaCommentRepository';
 import { CreateCommentController }       from '../../src/comment/CommentController';
 import { CreateApp }                     from '../../src/app';
 import { CreateLoggingService }          from '../../src/service/LoggingService';
@@ -43,6 +43,7 @@ import {
   EventPastError,
 } from '../../src/rsvp/errors';
 import type { Event, RSVP } from '../../src/rsvp/rsvp';
+import prisma from '../../src/lib/prismaClient';
 
 // ─── test-bed factory ─────────────────────────────────────────────────────────
 
@@ -59,11 +60,11 @@ function makeTestBed() {
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController  = CreateAuthController(authService, adminUserService, logger);
 
-  const rsvpRepo        = createInMemoryRsvpRepository();
+  const rsvpRepo        = createPrismaRsvpRepository(prisma);
   const rsvpService     = new RsvpService(rsvpRepo);
   const rsvpController  = CreateRsvpController(rsvpService, logger);
 
-  const commentRepo     = createInMemoryCommentRepository();
+  const commentRepo     = createPrismaCommentRepository(prisma);
   const commentService  = new CommentService(
     commentRepo,
     (eventId) => rsvpService.getEvent(eventId),
@@ -83,7 +84,11 @@ async function seedFutureEvent(
   ownerId  = 'owner-1',
   capacity?: number,
 ): Promise<Event> {
-  const result = await service.createEvent(title, ownerId, capacity);
+  const result = await service.createEvent(title, ownerId, capacity, {
+    email: `${ownerId}@seed.local`,
+    displayName: ownerId,
+    role: 'user',
+  });
 
   if(!result.ok) throw new Error('seedFutureEvent: createEvent failed');
   const event = result.value as Event;
@@ -95,6 +100,29 @@ async function seedFutureEvent(
   return event;
 }
 
+async function clearDatabase() {
+  await prisma.comment.deleteMany();
+  await prisma.rsvp.deleteMany();
+  await prisma.event.deleteMany();
+  await prisma.user.deleteMany();
+}
+
+async function updateEventState(
+  service: RsvpService,
+  event: Event,
+  updates: Partial<Pick<Event, 'status' | 'date'>>,
+) {
+  const result = await service.editEvent(event.id, event.createdByUserId, 'user', {
+    title: event.title,
+    capacity: event.capacity,
+    date: updates.date ?? event.date,
+    status: updates.status ?? event.status,
+  });
+
+  if (!result.ok) throw result.value;
+  return result.value;
+}
+
 // ─── HTTP-layer tests ────────────────────────────────────────────────────────
 //
 // In NODE_ENV=test, requireAuthenticated() returns true.
@@ -104,6 +132,9 @@ async function seedFutureEvent(
 // For domain-error paths we test directly at the service layer below.
 
 describe('Feature 4 – RSVP Toggle: HTTP layer', () => {
+  beforeEach(async () => {
+    await clearDatabase();
+  });
 
   it('POST /events/:eventId/rsvp without a session -> 401 (not a 500 crash)', async () => {
     const { expressApp, rsvpService } = makeTestBed();
@@ -157,6 +188,9 @@ describe('Feature 4 – RSVP Toggle: HTTP layer', () => {
 // these bypass HTTP entirely and test the full Result-pattern business logic
 
 describe('Feature 4 – RSVP Toggle: service layer', () => {
+  beforeEach(async () => {
+    await clearDatabase();
+  });
 
   // ── Happy path ─────────────────────────────────────────────────────────────
 
@@ -224,7 +258,7 @@ describe('Feature 4 – RSVP Toggle: service layer', () => {
     it('toggleRSVP on cancelled event -> EventCancelledError', async () => {
       const { rsvpService } = makeTestBed();
       const event = await seedFutureEvent(rsvpService);
-      (event as any).status = 'cancelled';
+      await updateEventState(rsvpService, event, { status: 'cancelled' });
 
       const result = await rsvpService.toggleRSVP(event.id, 'user-1');
       expect(result.ok).toBe(false);
@@ -234,7 +268,7 @@ describe('Feature 4 – RSVP Toggle: service layer', () => {
     it('toggleRSVP on a past event -> EventPastError', async () => {
       const { rsvpService } = makeTestBed();
       const event = await seedFutureEvent(rsvpService);
-      (event as any).date = '2020-01-01T00:00:00.000Z';
+      await updateEventState(rsvpService, event, { date: '2020-01-01T00:00:00.000Z' });
 
       const result = await rsvpService.toggleRSVP(event.id, 'user-1');
       expect(result.ok).toBe(false);
@@ -274,7 +308,7 @@ describe('Feature 4 – RSVP Toggle: service layer', () => {
     it('an event dated today is NOT rejected as past', async () => {
       const { rsvpService } = makeTestBed();
       const event = await seedFutureEvent(rsvpService);
-      (event as any).date = new Date().toISOString();  // exactly today
+      await updateEventState(rsvpService, event, { date: new Date().toISOString() });  // exactly today
 
       const result = await rsvpService.toggleRSVP(event.id, 'user-1');
       expect(result.ok).toBe(true);
@@ -292,4 +326,8 @@ describe('Feature 4 – RSVP Toggle: service layer', () => {
       expect(count.value).toBe(10);
     });
   });
+});
+
+afterAll(async () => {
+  await prisma.$disconnect();
 });

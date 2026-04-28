@@ -19,10 +19,10 @@ import request from 'supertest';
 
 // ── service / repo imports ────────────────────────────────────────────────────
 import { RsvpService }                     from '../../src/rsvp/RsvpService';
-import { createInMemoryRsvpRepository }    from '../../src/rsvp/InMemoryRsvpRepository';
+import { createPrismaRsvpRepository }      from '../../src/rsvp/PrismaRsvpRepository';
 import { CreateRsvpController }            from '../../src/rsvp/RsvpController';
 import { CommentService }                  from '../../src/comment/CommentService';
-import { createInMemoryCommentRepository } from '../../src/comment/InMemoryCommentRepository';
+import { createPrismaCommentRepository }   from '../../src/comment/PrismaCommentRepository';
 import { CreateCommentController }         from '../../src/comment/CommentController';
 import { CreateApp }                       from '../../src/app';
 import { CreateLoggingService }            from '../../src/service/LoggingService';
@@ -42,6 +42,7 @@ import {
 import { EventNotFoundError } from '../../src/rsvp/errors';
 import type { Event }         from '../../src/rsvp/rsvp';
 import type { Comment, CommentWithPermissions } from '../../src/comment/Comment';
+import prisma from '../../src/lib/prismaClient';
 
 // ─── test-bed factory ─────────────────────────────────────────────────────────
 
@@ -54,11 +55,11 @@ function makeTestBed() {
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController   = CreateAuthController(authService, adminUserService, logger);
 
-  const rsvpRepo       = createInMemoryRsvpRepository();
+  const rsvpRepo       = createPrismaRsvpRepository(prisma);
   const rsvpService    = new RsvpService(rsvpRepo);
   const rsvpController = CreateRsvpController(rsvpService, logger);
 
-  const commentRepo       = createInMemoryCommentRepository();
+  const commentRepo       = createPrismaCommentRepository(prisma);
   const commentService    = new CommentService(
     commentRepo,
     (eventId) => rsvpService.getEvent(eventId),
@@ -77,13 +78,24 @@ async function seedFutureEvent(
   title   = 'Test Event',
   ownerId = 'owner-1',
 ): Promise<Event> {
-  const result = await service.createEvent(title, ownerId);
+  const result = await service.createEvent(title, ownerId, undefined, {
+    email: `${ownerId}@seed.local`,
+    displayName: ownerId,
+    role: 'user',
+  });
   if(!result.ok) throw new Error('seedFutureEvent: createEvent failed');
   const event = result.value as Event;
   const future = new Date();
   future.setDate(future.getDate() + 30);
   (event as any).date = future.toISOString();
   return event;
+}
+
+async function clearDatabase() {
+  await prisma.comment.deleteMany();
+  await prisma.rsvp.deleteMany();
+  await prisma.event.deleteMany();
+  await prisma.user.deleteMany();
 }
 
 /** Seeds one comment and returns it. */
@@ -102,6 +114,9 @@ async function seedComment(
 // ─── HTTP-layer tests ────────────────────────────────────────────────────────
 
 describe('Feature 13 – Comments: HTTP layer', () => {
+  beforeEach(async () => {
+    await clearDatabase();
+  });
   it('POST /events/:eventId/comments without a session -> 401 (not a 500 crash)', async () => {
     const { expressApp, rsvpService } = makeTestBed();
     const event = await seedFutureEvent(rsvpService);
@@ -147,6 +162,9 @@ describe('Feature 13 – Comments: HTTP layer', () => {
 // ─── Service-layer tests ─────────────────────────────────────────────────────
 
 describe('Feature 13 – Comments: service layer', () => {
+  beforeEach(async () => {
+    await clearDatabase();
+  });
 
   // ── postComment happy path ─────────────────────────────────────────────────
 
@@ -418,4 +436,8 @@ describe('Feature 13 – Comments: service layer', () => {
       expect((listing.value as CommentWithPermissions[]).length).toBe(0);
     });
   });
+});
+
+afterAll(async () => {
+  await prisma.$disconnect();
 });

@@ -128,50 +128,297 @@ class ExpressApp implements IApp {
   }
 
   private registerRoutes(): void {
-    // ── Public routes ─────────────────────────────────────────────────
+    // ── Public routes ────────────────────────────────────────────────
 
-    this.app.get("/", asyncHandler(async (req, res) => {
-      this.logger.info("GET /");
-      const store = sessionStore(req);
-      res.redirect(isAuthenticatedSession(store) ? "/home" : "/login");
-    }));
+    this.app.get(
+      "/",
+      asyncHandler(async (req, res) => {
+        this.logger.info("GET /");
+        const store = sessionStore(req);
+        res.redirect(isAuthenticatedSession(store) ? "/home" : "/login");
+      }),
+    );
 
-    this.app.get("/login", asyncHandler(async (req, res) => {
-      const store = sessionStore(req);
-      const browserSession = recordPageView(store);
-      if (getAuthenticatedUser(store)) {
-        res.redirect("/home");
-        return;
-      }
-      await this.authController.showLogin(res, browserSession);
-    }));
+    this.app.get(
+      "/login",
+      asyncHandler(async (req, res) => {
+        const store = sessionStore(req);
+        const browserSession = recordPageView(store);
 
-    this.app.post("/login", asyncHandler(async (req, res) => {
-      const email = typeof req.body.email === "string" ? req.body.email : "";
-      const password = typeof req.body.password === "string" ? req.body.password : "";
-      await this.authController.loginFromForm(res, email, password, sessionStore(req));
-    }));
+        if (getAuthenticatedUser(store)) {
+          res.redirect("/home");
+          return;
+        }
 
-    this.app.post("/logout", asyncHandler(async (req, res) => {
-      await this.authController.logoutFromForm(res, sessionStore(req));
-    }));
+        await this.authController.showLogin(res, browserSession);
+      }),
+    );
 
-    // ── Admin routes ──────────────────────────────────────────────────
+    this.app.post(
+      "/login",
+      asyncHandler(async (req, res) => {
+        const email = typeof req.body.email === "string" ? req.body.email : "";
+        const password = typeof req.body.password === "string" ? req.body.password : "";
+        await this.authController.loginFromForm(res, email, password, sessionStore(req));
+      }),
+    );
 
-    this.app.get("/admin/users", asyncHandler(async (req, res) => {
-      if (!this.requireRole(req, res, ["admin"], "Only Admin can manage users.")) return;
-      const browserSession = recordPageView(sessionStore(req));
-      await this.authController.showAdminUsers(res, browserSession);
-    }));
+    this.app.post(
+      "/logout",
+      asyncHandler(async (req, res) => {
+        await this.authController.logoutFromForm(res, sessionStore(req));
+      }),
+    );
 
-    this.app.post("/admin/users", asyncHandler(async (req, res) => {
-      if (!this.requireRole(req, res, ["admin"], "Only Admin can manage users.")) return;
-      const roleValue = typeof req.body.role === "string" ? req.body.role : "user";
-      const role: UserRole =
-        roleValue === "admin" || roleValue === "staff" || roleValue === "user"
-          ? roleValue : "user";
-      await this.authController.createUserFromForm(
-        res,
+    // ── Admin routes ─────────────────────────────────────────────────
+
+    this.app.get(
+      "/admin/users",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin"], "Only Admin can manage users.")) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.authController.showAdminUsers(res, browserSession);
+      }),
+    );
+
+    this.app.post(
+      "/admin/users",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin"], "Only Admin can manage users.")) {
+          return;
+        }
+
+        const roleValue = typeof req.body.role === "string" ? req.body.role : "user";
+        const role: UserRole =
+          roleValue === "admin" || roleValue === "staff" || roleValue === "user"
+            ? roleValue
+            : "user";
+
+        await this.authController.createUserFromForm(
+          res,
+          {
+            email: typeof req.body.email === "string" ? req.body.email : "",
+            displayName:
+              typeof req.body.displayName === "string" ? req.body.displayName : "",
+            password: typeof req.body.password === "string" ? req.body.password : "",
+            role,
+          },
+          touchAppSession(sessionStore(req)),
+        );
+      }),
+    );
+
+    this.app.post(
+      "/admin/users/:id/delete",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin"], "Only Admin can manage users.")) {
+          return;
+        }
+
+        const session = touchAppSession(sessionStore(req));
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.authController.deleteUserFromForm(
+          res,
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser.userId,
+          session,
+        );
+      }),
+    );
+
+    // ── Authenticated home page ──────────────────────────────────────
+    // TODO: Replace this placeholder with your project's main page.
+
+    this.app.get(
+      "/home",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        this.logger.info(`GET /home for ${browserSession.browserLabel}`);
+        res.render("home", { session: browserSession, pageError: null });
+      }),
+    );
+
+    // list all events (authenticated users)
+    this.app.get(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store from request
+        const browserSession = recordPageView(store); // record page view for session tracking
+        const user = getAuthenticatedUser(store); // get current authenticated user
+
+        await this.rsvpController.showEvents(res, browserSession, user?.userId); // get and return events
+      }),
+    );
+
+    // HIGHLIGHT
+    // Show create event form (admin/staff only)
+    this.app.get(
+      "/events/new",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can create events")) {
+          return;
+        }
+        const store = sessionStore(req);
+        const browserSession = recordPageView(store);
+        res.render("events/new", { session: browserSession, error: null });
+      })
+    );
+
+    // HIGHLIGHT
+    // Show single event detail with rsvp button
+    this.app.get(
+      "/events/:eventId",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store from request
+        const browserSession = recordPageView(store); // record page view for session tracking (increments counter, updates last activity)
+        const user = getAuthenticatedUser(store); // get current authenticated user
+        const eventId = this.getParam(req.params.eventId); // get eventId from URL
+ 
+        await this.rsvpController.showEvent(res, eventId, browserSession, user?.userId); // get and return event details
+      }),
+    );
+
+    // create new event (admin or staff only)
+    this.app.post(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can create events.")) 
+        {
+          return; // make sure user has required role
+        }
+
+        const title = typeof req.body.title === "string" ? req.body.title.trim() : ""; // validate and trim title
+        const capacity = req.body.capacity ? parseInt(req.body.capacity, 10) : undefined; // get capacity if provided
+
+        const store = sessionStore(req); // get session store
+        const browserSession = touchAppSession(store); // update session activity
+
+        // get user from session
+        const user = getAuthenticatedUser(store);
+
+        if(!user)
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        await this.rsvpController.createEvent(
+          res,
+          title,
+          capacity,
+          browserSession,
+          user.userId,
+          { email: user.email, displayName: user.displayName, role: user.role },
+        ); // create event
+      }),
+    );
+
+    // show event edit form (organizer owner or admin)
+    this.app.get(
+      "/events/:eventId/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers or admins can edit events.")) {
+          return;
+        }
+
+        const store = sessionStore(req);
+        const browserSession = recordPageView(store);
+        const user = getAuthenticatedUser(store);
+        if (!user) {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        const eventId = this.getParam(req.params.eventId);
+        await this.rsvpController.showEditEventForm(res, eventId, browserSession, user.userId, user.role);
+      }),
+    );
+
+    // update event (organizer owner or admin)
+    this.app.post(
+      "/events/:eventId/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers or admins can edit events.")) {
+          return;
+        }
+
+        const store = sessionStore(req);
+        const browserSession = touchAppSession(store);
+        const user = getAuthenticatedUser(store);
+        if (!user) {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        const eventId = this.getParam(req.params.eventId);
+        const rawCapacity = typeof req.body.capacity === "string" ? req.body.capacity.trim() : "";
+        const capacity = rawCapacity === "" ? undefined : Number.parseInt(rawCapacity, 10);
+        const status = req.body.status === "cancelled" ? "cancelled" : "active";
+        const title = typeof req.body.title === "string" ? req.body.title : "";
+        const dateInput = typeof req.body.date === "string" ? req.body.date : "";
+        const parsedDate = dateInput ? new Date(dateInput) : null;
+        const date = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : "";
+
+        await this.rsvpController.updateEvent(
+          res,
+          eventId,
+          browserSession,
+          user.userId,
+          user.role,
+          { title, capacity, date, status },
+        );
+      }),
+    );
+
+    this.app.get(
+      "/events/:eventId/rsvp/partial",
+      asyncHandler(async (req, res) => {
+        if(!this.requireAuthenticated(req, res)) return;
+
+        const store = sessionStore(req);
+        const user = getAuthenticatedUser(store);
+
+        if(!user) 
+        {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+        
+        const eventId = this.getParam(req.params.eventId);
+        await this.rsvpController.getRsvpButtonPartial(res, eventId, user.userId);
+      })
+    );
+
+
+    // toggle rsvp 
+    this.app.post(
+      "/events/:eventId/rsvp",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+
+        const store = sessionStore(req); // get session store
+        const user = getAuthenticatedUser(store); // get authenticated user
+
+        if(!user) 
         {
           email: typeof req.body.email === "string" ? req.body.email : "",
           displayName: typeof req.body.displayName === "string" ? req.body.displayName : "",

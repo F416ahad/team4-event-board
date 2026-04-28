@@ -123,6 +123,18 @@ class PrismaRsvpRepository implements RSVPRepository {
 
   async addRSVP(eventId: string, userId: string, status: RSVPStatus): Promise<Result<void, Error>> {
     try {
+      await this.prisma.user.upsert({
+        where: { id: userId },
+        update: {},
+        create: {
+          id: userId,
+          email: `${userId}@session.local`,
+          displayName: userId,
+          role: "user",
+          passwordHash: "session-auth-user",
+        },
+      });
+
       await this.prisma.rsvp.upsert({
         where: { userId_eventId: { userId, eventId } },
         update: { status },
