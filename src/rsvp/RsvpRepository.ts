@@ -3,9 +3,11 @@ import type { Result } from "../lib/result"; // import result type
 
 export interface RSVPRepository {
     // Event methods
-    createEvent(title: string, createdByUserId: string): Promise<Result<Event, Error>>;
+    createEvent(title: string, createdByUserId: string, capacity?: number,
+        creator?: { email: string; displayName: string; role: "admin" | "staff" | "user" },): Promise<Result<Event, Error>>;
     getEvent(id: string): Promise<Result<Event | null, Error>>; // return the event or null wrapped in a result
     getEvents(): Promise<Result<Event[], Error>>; // return is array of Event's in a result
+
 
     // RSVP methods
     addRSVP(eventId: string, userId: string, status: RSVPStatus): Promise<Result<void, Error>>; // return is void in a result
