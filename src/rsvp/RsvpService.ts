@@ -173,8 +173,7 @@ export class RsvpService {
 
     return Ok(event);
   }
-
-  // count how many "going" for an event
+// count how many "going" for an event
   async countGoing(eventId: string): Promise<Result<number, Error>> 
   {
     return await this.repo.countGoing(eventId);
@@ -182,21 +181,21 @@ export class RsvpService {
 
   // get event owner ID
   async getEventOwnerId(eventId: string): Promise<Result<string | null, Error>> {
-        const result = await this.repo.getEvent(eventId);
+    const result = await this.repo.getEvent(eventId);
 
-        if(!result.ok) return Err(result.value as Error);
+    if(!result.ok) return Err(result.value as Error);
 
-        let ownerId: string | null;
+    let ownerId: string | null;
 
-        if(result.value && result.value.createdByUserId)
-        {
-            ownerId = result.value.createdByUserId;
-        } 
-        else 
-        {
-            ownerId = null;
-        }
-
-        return Ok(ownerId);
+    if(result.value && result.value.createdByUserId)
+    {
+      ownerId = result.value.createdByUserId;
+    } 
+    else 
+    {
+      ownerId = null;
     }
+
+    return Ok(ownerId);
+  }
 }
