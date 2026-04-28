@@ -147,6 +147,53 @@ class RsvpController implements IRsvpController {
     });
   }
 
+  async showEditEventForm(
+    res: Response,
+    eventId: string,
+    session: IAppBrowserSession,
+    actorUserId: string,
+    actorRole: UserRole,
+  ): Promise<void> {
+    const eventResult = await this.service.getEvent(eventId);
+    if (!eventResult.ok || !eventResult.value) {
+      res.status(404).render("events/show", { session, event: null, userRsvp: null, attendeeCount: 0, error: "Event not found" });
+      return;
+    }
+
+    const event = eventResult.value;
+    const isAdmin = actorRole === "admin";
+    const isOwner = event.createdByUserId === actorUserId;
+    if (!isAdmin && !isOwner) {
+      res.status(403).render("partials/error", { message: "Only the organizer or an admin can edit this event", layout: false });
+      return;
+    }
+
+    res.render("events/edit", { session, event, error: null });
+  }
+
+  async updateEvent(
+    res: Response,
+    eventId: string,
+    session: IAppBrowserSession,
+    actorUserId: string,
+    actorRole: UserRole,
+    updates: { title: string; capacity?: number; date: string; status: "active" | "cancelled" },
+  ): Promise<void> {
+    const result = await this.service.editEvent(eventId, actorUserId, actorRole, updates);
+    if (!result.ok) {
+      const error = result.value as Error;
+      const status = this.mapErrorStatus(error);
+      const eventResult = await this.service.getEvent(eventId);
+      res.status(status).render("events/edit", {
+        session,
+        event: eventResult.ok && eventResult.value ? eventResult.value : { id: eventId, ...updates, createdByUserId: actorUserId, rsvps: [] },
+        error: error.message,
+      });
+      return;
+    }
+
+    res.redirect(`/events/${eventId}`);
+  }
     
     // create an event (admin/staff)
    async createEvent(
