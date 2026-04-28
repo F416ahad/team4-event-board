@@ -25,3 +25,36 @@ function toComment(row: {
   };
 }
 
+class PrismaCommentRepository implements CommentRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async createComment(comment: Omit<Comment, "id">): Promise<Result<Comment, Error>> {
+    try {
+      await this.prisma.user.upsert({
+        where: { id: comment.userId },
+        update: { displayName: comment.displayName },
+        create: {
+          id: comment.userId,
+          email: `${comment.userId}@session.local`,
+          displayName: comment.displayName,
+          role: "user",
+          passwordHash: "session-auth-user",
+        },
+      });
+
+      const row = await this.prisma.comment.create({
+        data: {
+          eventId: comment.eventId,
+          userId: comment.userId,
+          displayName: comment.displayName,
+          content: comment.content,
+          createdAt: comment.createdAt,
+        },
+      });
+      return Ok(toComment(row));
+    } catch (e) {
+      return Err(e instanceof Error ? e : new Error(String(e)));
+    }
+  }
+
+  
