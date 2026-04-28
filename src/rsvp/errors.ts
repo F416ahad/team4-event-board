@@ -16,6 +16,18 @@ export class EventFullError extends Error {
   constructor() { super("Event has reached capacity"); }
 }
 
+export class EventEditNotAuthorizedError extends Error {
+  constructor() { super("You are not allowed to edit this event"); }
+}
+
+export class EventInvalidStateError extends Error {
+  constructor() { super("Cancelled or past events cannot be edited"); }
+}
+
+export class EventInvalidInputError extends Error {
+  constructor(message: string) { super(message); }
+}
+
 // generic failure (unexpected)
 export class RsvpToggleFailedError extends Error {
   constructor() { super("Failed to toggle RSVP"); }
