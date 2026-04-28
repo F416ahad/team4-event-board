@@ -52,7 +52,24 @@ class InMemoryRsvpRepository implements RSVPRepository {
     }
   }
 
+  async updateEvent(
+    eventId: string,
+    updates: { title: string; capacity?: number; date: string; status: Event["status"] },
+  ): Promise<Result<Event | null, Error>> {
+    try {
+      const event = this.Events.find((e) => e.id === eventId) ?? null;
+      if (!event) return Ok(null);
 
+      event.title = updates.title;
+      event.capacity = updates.capacity;
+      event.date = updates.date;
+      event.status = updates.status;
+
+      return Ok(event);
+    } catch {
+      return Err(new Error("Unable to update event"));
+    }
+  }
 
   // HIGHLIGHT
   async addRSVP(
