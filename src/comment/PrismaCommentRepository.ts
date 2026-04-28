@@ -81,4 +81,12 @@ class PrismaCommentRepository implements CommentRepository {
     }
   }
 
+  async findCommentById(commentId: string): Promise<Result<Comment | null, Error>> {
+    try {
+      const row = await this.prisma.comment.findUnique({ where: { id: commentId } });
+      return Ok(row ? toComment(row) : null);
+    } catch (e) {
+      return Err(e instanceof Error ? e : new Error(String(e)));
+    }
+  }
 }
