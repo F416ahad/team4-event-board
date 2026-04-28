@@ -7,7 +7,13 @@ export interface RSVPRepository {
         creator?: { email: string; displayName: string; role: "admin" | "staff" | "user" },): Promise<Result<Event, Error>>;
     getEvent(id: string): Promise<Result<Event | null, Error>>; // return the event or null wrapped in a result
     getEvents(): Promise<Result<Event[], Error>>; // return is array of Event's in a result
-
+    updateEvent(eventId: string,
+        updates: {
+            title: string;
+            capacity?: number;
+            date: string;
+            status: Event["status"];
+        },): Promise<Result<Event | null, Error>>;
 
     // RSVP methods
     addRSVP(eventId: string, userId: string, status: RSVPStatus): Promise<Result<void, Error>>; // return is void in a result
