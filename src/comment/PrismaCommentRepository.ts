@@ -69,4 +69,16 @@ class PrismaCommentRepository implements CommentRepository {
     }
   }
 
- 
+  async deleteComment(commentId: string): Promise<Result<boolean, Error>> {
+    try {
+      await this.prisma.comment.delete({ where: { id: commentId } });
+      return Ok(true);
+    } catch (e) {
+      if (e instanceof Error && (e as any).code === "P2025") {
+        return Ok(false);
+      }
+      return Err(e instanceof Error ? e : new Error(String(e)));
+    }
+  }
+
+}
