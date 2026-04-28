@@ -356,7 +356,71 @@ class ExpressApp implements IApp {
           return;
         }
 
-        await this.rsvpController.createEvent(res, title, capacity, browserSession, user.userId); // create event
+        await this.rsvpController.createEvent(
+          res,
+          title,
+          capacity,
+          browserSession,
+          user.userId,
+          { email: user.email, displayName: user.displayName, role: user.role },
+        ); // create event
+      }),
+    );
+
+    // show event edit form (organizer owner or admin)
+    this.app.get(
+      "/events/:eventId/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers or admins can edit events.")) {
+          return;
+        }
+
+        const store = sessionStore(req);
+        const browserSession = recordPageView(store);
+        const user = getAuthenticatedUser(store);
+        if (!user) {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        const eventId = this.getParam(req.params.eventId);
+        await this.rsvpController.showEditEventForm(res, eventId, browserSession, user.userId, user.role);
+      }),
+    );
+
+    // update event (organizer owner or admin)
+    this.app.post(
+      "/events/:eventId/edit",
+      asyncHandler(async (req, res) => {
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only organizers or admins can edit events.")) {
+          return;
+        }
+
+        const store = sessionStore(req);
+        const browserSession = touchAppSession(store);
+        const user = getAuthenticatedUser(store);
+        if (!user) {
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        const eventId = this.getParam(req.params.eventId);
+        const rawCapacity = typeof req.body.capacity === "string" ? req.body.capacity.trim() : "";
+        const capacity = rawCapacity === "" ? undefined : Number.parseInt(rawCapacity, 10);
+        const status = req.body.status === "cancelled" ? "cancelled" : "active";
+        const title = typeof req.body.title === "string" ? req.body.title : "";
+        const dateInput = typeof req.body.date === "string" ? req.body.date : "";
+        const parsedDate = dateInput ? new Date(dateInput) : null;
+        const date = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : "";
+
+        await this.rsvpController.updateEvent(
+          res,
+          eventId,
+          browserSession,
+          user.userId,
+          user.role,
+          { title, capacity, date, status },
+        );
       }),
     );
 
