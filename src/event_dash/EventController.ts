@@ -91,7 +91,7 @@ export class DashboardController implements IDashboardController {
         eventId,
         auth.userId,
         auth.role,
-        "PUBLISHED"
+        "active"
       );
       const updated = await this.service.getEventForDashboard(eventId);
       res.status(200).render("dashboard/_event-row", {
@@ -118,7 +118,7 @@ export class DashboardController implements IDashboardController {
           eventId,
           auth.userId,
           auth.role,
-          "CANCELLED"
+          "cancelled"
         );
         const updated = await this.service.getEventForDashboard(eventId);
         res.status(200).render("dashboard/_event-row", {

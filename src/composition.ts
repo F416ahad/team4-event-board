@@ -7,6 +7,12 @@ import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
+import { CreateArchiveController } from "./events/ArchiveController";
+import { CreateArchiveService } from "./events/ArchiveService";
+import { CreateAttendeeController } from "./events/AttendeeController";
+import { CreateAttendeeService } from "./events/AttendeeService";
+import { CreateInMemoryEventRepository } from "./events/InMemoryEventRepository";
+import { CreateInMemoryRsvpRepository } from "./events/InMemoryRsvpRepository";
 
 // rsvp imports
 import { RsvpService } from "./rsvp/RsvpService";
@@ -23,12 +29,6 @@ import { createPrismaCommentRepository } from "./comment/PrismaCommentRepository
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
-  //const prisma = new PrismaClient();
-  const sqlite = new Database(process.env.DATABASE_URL?.replace('file:./', '') ?? './prisma/dev.db');
-  const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL?.replace('file:', '') ?? './prisma/dev.db',
-  });
-  const prisma = new PrismaClient({ adapter });
 
   // ── Auth wiring ───────────────────────────────────────────────────
   const authUsers = CreateInMemoryUserRepository();
@@ -50,7 +50,21 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     );
     const commentController = CreateCommentController(commentService, resolvedLogger);
 
-  return CreateApp(authController, resolvedLogger, rsvpController, commentController);
+  const eventRepo = CreateInMemoryEventRepository();
+  const attendeeRsvpRepo = CreateInMemoryRsvpRepository();
+  const archiveService = CreateArchiveService(eventRepo);
+  const attendeeService = CreateAttendeeService(attendeeRsvpRepo, eventRepo);
+  const archiveController = CreateArchiveController(archiveService);
+  const attendeeController = CreateAttendeeController(attendeeService);
+
+  return CreateApp(
+    authController,
+    archiveController,
+    attendeeController,
+    resolvedLogger,
+    rsvpController,
+    commentController,
+  );
 }
 
 export function compose() {

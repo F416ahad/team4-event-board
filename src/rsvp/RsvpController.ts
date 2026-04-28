@@ -102,6 +102,7 @@ class RsvpController implements IRsvpController {
       res.status(500).render("events/index", {
         session,
         events: [],
+        filters: { category: "all" },
         error: "Unable to load events",
       });
       return;
@@ -109,6 +110,7 @@ class RsvpController implements IRsvpController {
     res.render("events/index", {
       session,
       events: result.value,
+      filters: { category: "all" },
       currentUserId,
       error: null,
     });

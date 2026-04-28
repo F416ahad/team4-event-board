@@ -17,7 +17,7 @@ import {
 import { ILoggingService } from "./service/LoggingService";
 import { IArchiveController } from "./events/ArchiveController";
 import { IAttendeeController } from "./events/AttendeeController";
-import { IRsvpController } from "./rsvp/waitlistController";
+import { IRsvpController } from "./rsvp/RsvpController";
 import { ICommentController } from "./comment/CommentController";
 import { IDashboardController } from "./event_dash/EventController";
 import { EventSearchController } from "./events/EventSearchController";
@@ -79,6 +79,10 @@ class ExpressApp implements IApp {
 
   private isHtmxRequest(req: Request): boolean {
     return req.get("HX-Request") === "true";
+  }
+
+  private getParam(value: string | string[] | undefined): string {
+    return Array.isArray(value) ? value[0] ?? "" : value ?? "";
   }
 
   private requireAuthenticated(req: Request, res: Response): boolean {
@@ -249,7 +253,7 @@ class ExpressApp implements IApp {
 
         const browserSession = recordPageView(sessionStore(req));
         this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null });
+        res.render("home", { session: browserSession, pageError: null, dashboard: null });
       }),
     );
 
@@ -262,6 +266,11 @@ class ExpressApp implements IApp {
         const store = sessionStore(req); // get session store from request
         const browserSession = recordPageView(store); // record page view for session tracking
         const user = getAuthenticatedUser(store); // get current authenticated user
+
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
 
         await this.rsvpController.showEvents(res, browserSession, user?.userId); // get and return events
       }),
@@ -293,6 +302,11 @@ class ExpressApp implements IApp {
         const user = getAuthenticatedUser(store); // get current authenticated user
         const eventId = this.getParam(req.params.eventId); // get eventId from URL
  
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
+
         await this.rsvpController.showEvent(res, eventId, browserSession, user?.userId); // get and return event details
       }),
     );
@@ -318,6 +332,11 @@ class ExpressApp implements IApp {
         if(!user)
         {
           res.status(401).send("Unauthorized");
+          return;
+        }
+
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
           return;
         }
 
@@ -349,6 +368,10 @@ class ExpressApp implements IApp {
         }
 
         const eventId = this.getParam(req.params.eventId);
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
         await this.rsvpController.showEditEventForm(res, eventId, browserSession, user.userId, user.role);
       }),
     );
@@ -378,6 +401,11 @@ class ExpressApp implements IApp {
         const parsedDate = dateInput ? new Date(dateInput) : null;
         const date = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : "";
 
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
+
         await this.rsvpController.updateEvent(
           res,
           eventId,
@@ -404,6 +432,10 @@ class ExpressApp implements IApp {
         }
         
         const eventId = this.getParam(req.params.eventId);
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
         await this.rsvpController.getRsvpButtonPartial(res, eventId, user.userId);
       })
     );
@@ -420,14 +452,23 @@ class ExpressApp implements IApp {
 
         if(!user) 
         {
-          email: typeof req.body.email === "string" ? req.body.email : "",
-          displayName: typeof req.body.displayName === "string" ? req.body.displayName : "",
-          password: typeof req.body.password === "string" ? req.body.password : "",
-          role,
-        },
-        touchAppSession(sessionStore(req)),
-      );
-    }));
+          res.status(401).send("Unauthorized");
+          return;
+        }
+
+        const eventId = this.getParam(req.params.eventId);
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
+        await this.rsvpController.toggleRSVP(
+          res,
+          eventId,
+          user.userId,
+          touchAppSession(store),
+        );
+      }),
+    );
 
     this.app.post("/admin/users/:id/delete", asyncHandler(async (req, res) => {
       if (!this.requireRole(req, res, ["admin"], "Only Admin can manage users.")) return;
@@ -472,39 +513,6 @@ class ExpressApp implements IApp {
     this.app.get("/events/search", asyncHandler(async (req, res) => {
       if (!this.requireAuthenticated(req, res)) return;
       await EventSearchController.handleSearch(req, res);
-    }));
-
-    // ── RSVP / Events ────────────────────────────────────────────────
-
-    this.app.get("/events", asyncHandler(async (req, res) => {
-      if (!this.requireAuthenticated(req, res)) return;
-      const store = sessionStore(req);
-      const browserSession = recordPageView(store);
-      const user = getAuthenticatedUser(store);
-      if (this.rsvpController) {
-        await this.rsvpController.showEvent(req, res, "", user?.userId ?? "");
-      }
-    }));
-
-    this.app.get("/events/:eventId", asyncHandler(async (req, res) => {
-      if (!this.requireAuthenticated(req, res)) return;
-      const store = sessionStore(req);
-      const user = getAuthenticatedUser(store);
-      const eventId = typeof req.params.eventId === "string" ? req.params.eventId : "";
-      if (this.rsvpController) {
-        await this.rsvpController.showEvent(req, res, eventId, user?.userId ?? "");
-      }
-    }));
-
-    this.app.post("/events/:eventId/rsvp/cancel", asyncHandler(async (req, res) => {
-      if (!this.requireAuthenticated(req, res)) return;
-      const store = sessionStore(req);
-      const user = getAuthenticatedUser(store);
-      if (!user) { res.status(401).send("Unauthorized"); return; }
-      const eventId = typeof req.params.eventId === "string" ? req.params.eventId : "";
-      if (this.rsvpController) {
-        await this.rsvpController.cancelRsvpFromForm(req, res, eventId, user.userId);
-      }
     }));
 
     // ── Comments ──────────────────────────────────────────────────────
