@@ -1,11 +1,15 @@
 import { Ok, Err, type Result } from "../lib/result";
 import type { RSVPRepository } from "./RsvpRepository";
 import type { RSVPStatus, Event, RSVP } from "./rsvp.ts";
+import type { UserRole } from "../auth/User";
 // import custom errors
 import {
   EventNotFoundError,
   EventCancelledError,
   EventPastError,
+  EventEditNotAuthorizedError,
+  EventInvalidStateError,
+  EventInvalidInputError,
   RsvpToggleFailedError,
 } from "./errors";
 
@@ -159,20 +163,16 @@ export class RsvpService {
   }
 
   // create event (needs owner id)
-  async createEvent(title: string, createdByUserId: string, capacity?: number,): Promise<Result<Event, Error>> {
-    const result = await this.repo.createEvent(title, createdByUserId);
-
-    if(!result.ok) return result;
-
-    const event = result.value;
-
-    if(capacity !== undefined) 
-    {
-      event.capacity = capacity;
-    }
-
-    return Ok(event);
+  async createEvent(
+    title: string,
+    createdByUserId: string,
+    capacity?: number,
+    creator?: { email: string; displayName: string; role: UserRole },
+  ): Promise<Result<Event, Error>> {
+    return await this.repo.createEvent(title, createdByUserId, capacity, creator);
   }
+
+ 
 
   // count how many "going" for an event
   async countGoing(eventId: string): Promise<Result<number, Error>> 
