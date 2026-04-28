@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url = env("file:./dev.db")
 }
 
 // TODO: Define your project's data models here.
@@ -65,6 +64,7 @@ model Rsvp {
 model Comment {
   id        String   @id @default(uuid())
   content   String
+  displayName String
   userId    String
   eventId   String
   createdAt DateTime @default(now())
