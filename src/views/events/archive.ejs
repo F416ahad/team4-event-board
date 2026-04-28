@@ -1,0 +1,29 @@
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <h1 class="text-2xl font-bold mb-2">Past Events</h1>
+  <p class="text-gray-500 mb-6">Events that have already ended.</p>
+
+  <!-- Category filter — HTMX updates just the list below -->
+  <div class="mb-6 flex gap-2 flex-wrap">
+    <button
+      hx-get="/archive"
+      hx-target="#archive-list"
+      hx-swap="innerHTML"
+      class="px-3 py-1 rounded border text-sm <%= !selectedCategory ? 'bg-gray-800 text-white' : 'bg-white text-gray-700' %>">
+      All
+    </button>
+    <% categories.forEach(cat => { %>
+      <button
+        hx-get="/archive?category=<%= cat %>"
+        hx-target="#archive-list"
+        hx-swap="innerHTML"
+        class="px-3 py-1 rounded border text-sm capitalize <%= selectedCategory === cat ? 'bg-gray-800 text-white' : 'bg-white text-gray-700' %>">
+        <%= cat %>
+      </button>
+    <% }) %>
+  </div>
+
+  <!-- Event list — swapped by HTMX on filter -->
+  <div id="archive-list">
+    <%- include('partials/archive-list', { events, selectedCategory, categories }) %>
+  </div>
+</div>

@@ -1,0 +1,51 @@
+<div class="search-page" style="max-width: 800px; margin: 0 auto; padding: 20px;">
+  <h1>Search Events</h1>
+  
+  <form id="searchForm" action="/events/search" method="GET" style="margin-bottom: 30px;">
+    <input 
+      type="text" 
+      id="searchInput" 
+      name="q" 
+      value="<%= searchQuery %>" 
+      placeholder="Search by title, description, or location..."
+      style="width: 100%; padding: 10px; font-size: 16px;"
+      autocomplete="off"
+    />
+  </form>
+
+  <div id="searchResults">
+    <% if (events.length === 0) { %>
+      <p>No published upcoming events found.</p>
+    <% } else { %>
+      <ul style="list-style-type: none; padding: 0;">
+        <% events.forEach(function(event) { %>
+          <li style="border: 1px solid #ccc; margin-bottom: 15px; padding: 15px; border-radius: 5px;">
+            <h3 style="margin-top: 0;">
+              <a href="/events/<%= event.id %>" style="text-decoration: none; color: #0056b3;">
+                <%= event.title %>
+              </a>
+            </h3>
+            <p><strong>Location:</strong> <%= event.location %></p>
+            <p><strong>Date:</strong> <%= new Date(event.startDatetime).toLocaleString() %></p>
+            <p><%= event.description %></p>
+          </li>
+        <% }); %>
+      </ul>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  const searchInput = document.getElementById('searchInput');
+  let timeout = null;
+
+  searchInput.addEventListener('input', function() {
+    // Clear the previous timer if the user keeps typing
+    clearTimeout(timeout);
+    
+    // Set a new timer. If they stop typing for 500ms, submit the form!
+    timeout = setTimeout(function() {
+      document.getElementById('searchForm').submit();
+    }, 500);
+  });
+</script>

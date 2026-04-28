@@ -23,8 +23,14 @@ import { createPrismaCommentRepository } from "./comment/PrismaCommentRepository
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
+  //const prisma = new PrismaClient();
+  const sqlite = new Database(process.env.DATABASE_URL?.replace('file:./', '') ?? './prisma/dev.db');
+  const adapter = new PrismaBetterSqlite3({
+  url: process.env.DATABASE_URL?.replace('file:', '') ?? './prisma/dev.db',
+  });
+  const prisma = new PrismaClient({ adapter });
 
-  // Authentication & authorization wiring
+  // ── Auth wiring ───────────────────────────────────────────────────
   const authUsers = CreateInMemoryUserRepository();
   const passwordHasher = CreatePasswordHasher();
   const authService = CreateAuthService(authUsers, passwordHasher);
