@@ -57,4 +57,16 @@ class PrismaCommentRepository implements CommentRepository {
     }
   }
 
-  
+  async getCommentsByEvent(eventId: string): Promise<Result<Comment[], Error>> {
+    try {
+      const rows = await this.prisma.comment.findMany({
+        where: { eventId },
+        orderBy: { createdAt: "asc" },
+      });
+      return Ok(rows.map(toComment));
+    } catch (e) {
+      return Err(e instanceof Error ? e : new Error(String(e)));
+    }
+  }
+
+ 
