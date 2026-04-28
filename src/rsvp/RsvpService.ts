@@ -172,7 +172,46 @@ export class RsvpService {
     return await this.repo.createEvent(title, createdByUserId, capacity, creator);
   }
 
- 
+  async editEvent(
+    eventId: string,
+    actorUserId: string,
+    actorRole: UserRole,
+    updates: { title: string; capacity?: number; date: string; status: Event["status"] },
+  ): Promise<Result<Event, Error>> {
+    const eventResult = await this.repo.getEvent(eventId);
+    if (!eventResult.ok) return Err(eventResult.value as Error);
+
+    const event = eventResult.value;
+    if (!event) return Err(new EventNotFoundError());
+
+    const isAdmin = actorRole === "admin";
+    const isOwner = event.createdByUserId === actorUserId;
+    if (!isAdmin && !isOwner) return Err(new EventEditNotAuthorizedError());
+
+    const eventDate = new Date(event.date);
+    if (event.status === "cancelled" || eventDate.toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+      return Err(new EventInvalidStateError());
+    }
+
+    const title = updates.title.trim();
+    if (!title) return Err(new EventInvalidInputError("Event title is required"));
+    if (updates.capacity !== undefined && updates.capacity < 1) {
+      return Err(new EventInvalidInputError("Capacity must be at least 1"));
+    }
+    if (Number.isNaN(new Date(updates.date).getTime())) {
+      return Err(new EventInvalidInputError("Event date is invalid"));
+    }
+
+    const updateResult = await this.repo.updateEvent(eventId, {
+      title,
+      capacity: updates.capacity,
+      date: updates.date,
+      status: updates.status,
+    });
+    if (!updateResult.ok) return Err(updateResult.value as Error);
+    if (!updateResult.value) return Err(new EventNotFoundError());
+    return Ok(updateResult.value);
+  }
 
   // count how many "going" for an event
   async countGoing(eventId: string): Promise<Result<number, Error>> 
