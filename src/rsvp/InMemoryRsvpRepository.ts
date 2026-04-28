@@ -5,10 +5,23 @@ import type { RSVPRepository } from "./RsvpRepository.ts";
 class InMemoryRsvpRepository implements RSVPRepository {
     constructor(private readonly Events: Event[]) {} // Initializes the repository with an in-memory events array
 
-  async createEvent(title: string, createdByUserId: string): Promise<Result<Event, Error>> {
+  async createEvent(
+    title: string,
+    createdByUserId: string,
+    capacity?: number,
+    _creator?: { email: string; displayName: string; role: "admin" | "staff" | "user" },
+  ): Promise<Result<Event, Error>> {
     try {
       // creates an event with unqiue id and empty rsvp list
-      const event: Event = { id: Date.now().toString(), title, rsvps: [], createdByUserId, status: "active", date: new Date().toISOString()};
+      const event: Event = {
+        id: Date.now().toString(),
+        title,
+        rsvps: [],
+        createdByUserId,
+        status: "active",
+        date: new Date().toISOString(),
+        capacity,
+      };
 
       this.Events.push(event); // Stores the new event in memory
 
@@ -38,6 +51,8 @@ class InMemoryRsvpRepository implements RSVPRepository {
       return Err(new Error("Unable to get events")); // return error message
     }
   }
+
+
 
   // HIGHLIGHT
   async addRSVP(
