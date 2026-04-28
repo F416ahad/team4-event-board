@@ -11,12 +11,14 @@ import type { ILoggingService } from "./service/LoggingService";
 // rsvp imports
 import { RsvpService } from "./rsvp/RsvpService";
 import { CreateRsvpController } from "./rsvp/RsvpController";
-import { createInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
 
 // comment imports
 import { CommentService } from "./comment/CommentService";
 import { CreateCommentController } from "./comment/CommentController";
-import { createInMemoryCommentRepository } from "./comment/InMemoryCommentRepository";
+
+import prisma                            from "./lib/prismaClient";
+import { createPrismaRsvpRepository }    from "./rsvp/PrismaRsvpRepository";
+import { createPrismaCommentRepository } from "./comment/PrismaCommentRepository";
 
 
 export function createComposedApp(logger?: ILoggingService): IApp {
@@ -30,12 +32,12 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
     // rsvp wiring
-    const rsvpRepo = createInMemoryRsvpRepository();
+    const rsvpRepo = createPrismaRsvpRepository(prisma);
     const rsvpService = new RsvpService(rsvpRepo);
     const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
     // comment wiring (depends on rsvpService for event lookup)
-    const commentRepo = createInMemoryCommentRepository();
+    const commentRepo = createPrismaCommentRepository(prisma);
     const commentService = new CommentService(
         commentRepo,
         async (eventId: string) => await rsvpService.getEvent(eventId)
@@ -43,4 +45,27 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     const commentController = CreateCommentController(commentService, resolvedLogger);
 
   return CreateApp(authController, resolvedLogger, rsvpController, commentController);
+}
+
+export function compose() {
+  const logger = CreateLoggingService();
+
+  const authUsers        = CreateInMemoryUserRepository();
+  const passwordHasher   = CreatePasswordHasher();
+  const authService      = CreateAuthService(authUsers, passwordHasher);
+  const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
+  const authController   = CreateAuthController(authService, adminUserService, logger);
+
+  const rsvpRepo       = createPrismaRsvpRepository(prisma);
+  const rsvpService    = new RsvpService(rsvpRepo);
+  const rsvpController = CreateRsvpController(rsvpService, logger);
+
+  const commentRepo       = createPrismaCommentRepository(prisma);
+  const commentService    = new CommentService(
+    commentRepo,
+    (eventId) => rsvpService.getEvent(eventId),
+  );
+  const commentController = CreateCommentController(commentService, logger);
+
+  return { authController, logger, rsvpController, commentController };
 }
