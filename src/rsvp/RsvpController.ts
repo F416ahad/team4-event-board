@@ -2,6 +2,7 @@ import type { Response } from "express";
 import type { RsvpService } from "./RsvpService";
 import type { ILoggingService } from "../service/LoggingService";
 import type { IAppBrowserSession } from "../session/AppSession";
+import type { UserRole } from "../auth/User";
 import { Result } from "../lib/result";
 
 // import custom error types
@@ -9,6 +10,9 @@ import {
   EventNotFoundError,
   EventCancelledError,
   EventPastError,
+  EventEditNotAuthorizedError,
+  EventInvalidStateError,
+  EventInvalidInputError,
 } from "./errors";
 
 // Controller interface for rsvp
@@ -16,7 +20,11 @@ export interface IRsvpController {
   toggleRSVP(res: Response, eventId: string, userId: string, session: IAppBrowserSession): Promise<void>;
   showEvents(res: Response, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
   showEvent(res: Response, eventId: string, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
-  createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession, userId: string): Promise<void>;
+  showEditEventForm(res: Response, eventId: string, session: IAppBrowserSession, actorUserId: string, actorRole: UserRole,): Promise<void>;
+  updateEvent(res: Response, eventId: string, session: IAppBrowserSession, actorUserId: string, actorRole: UserRole,
+    updates: { title: string; capacity?: number; date: string; status: "active" | "cancelled" },): Promise<void>;
+  createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession, userId: string,
+    creator: { email: string; displayName: string; role: UserRole },): Promise<void>;
   getEventOwnerId(eventId: string): Promise<Result<string | null, Error>>;
   getUserRsvpStatus(res: Response, eventId: string, userId: string): Promise<void>;
   getAttendeeCount(res: Response, eventId: string): Promise<void>;
@@ -35,6 +43,9 @@ class RsvpController implements IRsvpController {
     if(error instanceof EventNotFoundError) return 404;   // resource missing
     if(error instanceof EventCancelledError) return 404;  // permanently gone (cancelled)
     if(error instanceof EventPastError) return 400;       // invalid request for past event
+    if(error instanceof EventEditNotAuthorizedError) return 403; // permission issue
+    if(error instanceof EventInvalidStateError) return 409; // capacity conflict
+    if(error instanceof EventInvalidInputError) return 400; // invalid request
     if(error.message.toLowerCase().includes("full")) return 409;      // capacity conflict
     if(error.message.toLowerCase().includes("not allowed")) return 403; // permission issue
     return 500; // Unexpected server failure/default fallback for unexpected errors
@@ -135,9 +146,17 @@ class RsvpController implements IRsvpController {
       error: null,
     });
   }
+
     
     // create an event (admin/staff)
-   async createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession, userId: string): Promise<void> {
+   async createEvent(
+    res: Response,
+    title: string,
+    capacity: number | undefined,
+    session: IAppBrowserSession,
+    userId: string,
+    creator: { email: string; displayName: string; role: UserRole },
+  ): Promise<void> {
     if (!title) {
       res.status(400).render("events/new", {
         session,
@@ -147,7 +166,7 @@ class RsvpController implements IRsvpController {
       return;
     }
 
-    const result = await this.service.createEvent(title, userId, capacity);
+    const result = await this.service.createEvent(title, userId, capacity, creator);
     if(!result.ok) 
     {
       const error = result.value as Error;
