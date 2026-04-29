@@ -36,13 +36,13 @@ model Event {
   id               String    @id @default(uuid())
   title            String
   capacity         Int?
-  status           String    @default("active") // "active" | "cancelled"
+  status           String    @default("active") // "active" | "past" | "cancelled"
   date             DateTime
+  endTime          DateTime?
   createdByUserId  String
   createdBy        User      @relation("EventCreator", fields: [createdByUserId], references: [id])
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-
   rsvps    Rsvp[]
   comments Comment[]
 }
