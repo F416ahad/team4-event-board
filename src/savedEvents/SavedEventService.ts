@@ -1,36 +1,33 @@
-import { SavedEventRepo } from "./InMemorySavedEventRepository";
-import { Result } from "../lib/result";
+// src/savedEvents/SavedEventService.ts
+import { SavedEventRepository } from '../repositories/SavedEventRepository';
+import { InvalidSaveError } from '../lib/errors';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const SavedEventService = {
-  /**
-   * Toggles the saved status of an event.
-   * If it's already saved, it unsaves it. If not, it saves it.
-   */
-  toggleSave: async (userId: string, eventId: string): Promise<Result<string, Error>> => {
+  async toggleSave(userId: string, eventId: string) {
     try {
-      // 1. Get current saved IDs
-      const savedIds = SavedEventRepo.getSavedEventIds(userId);
+      const event = await prisma.event.findUnique({ where: { id: eventId } });
       
-      // 2. Check if already saved
-      const isAlreadySaved = savedIds.includes(eventId);
-
-      if (isAlreadySaved) {
-        SavedEventRepo.unsaveEvent(userId, eventId);
-        return { ok: true, value: "Event removed from saved list" };
-      } else {
-        SavedEventRepo.saveEvent(userId, eventId);
-        return { ok: true, value: "Event saved successfully" };
+      if (!event || event.status === "cancelled") {
+        return { ok: false as const, value: new InvalidSaveError("Cannot save an invalid or cancelled event.") };
       }
-    } catch (err) {
-      return { ok: false, value: new Error("Failed to toggle save status")};
+
+      const resultMessage = await SavedEventRepository.toggleSave(userId, eventId);
+      return { ok: true as const, value: resultMessage };
+
+    } catch (error) {
+      return { ok: false as const, value: new Error("SaveError: Unexpected repository error.") };
     }
   },
 
-  /**
-   * Gets all saved events for a user
-   */
-  getSavedEventsForUser: async (userId: string): Promise<Result<string[], Error>> => {
-    const ids = SavedEventRepo.getSavedEventIds(userId);
-    return { ok: true, value: ids };
+  async getSavedEventsForUser(userId: string) {
+    try {
+      const eventIds = await SavedEventRepository.getSavedEventsForUser(userId);
+      return { ok: true as const, value: eventIds };
+    } catch (error) {
+      return { ok: false as const, value: new Error("SaveError: Unexpected repository error.") };
+    }
   }
 };

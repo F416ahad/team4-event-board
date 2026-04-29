@@ -4,3 +4,9 @@ export class InvalidSaveError extends Error {
     this.name = "InvalidSaveError";
   }
 }
+export class InvalidInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidInputError";
+  }
+}
