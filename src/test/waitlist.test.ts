@@ -4,7 +4,7 @@ import {
   CreateInMemoryEventRepository,
   type InMemoryEvent,
   type InMemoryRSVP,
-} from "../rsvp/InMemoryRepository";
+} from "../rsvp/InMemoryWaitlistRepository";
 
 // ── Fixtures ────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import type { Response } from "express";
 import type { ILoggingService } from "../service/LoggingService";
 import type { IAppBrowserSession } from "../session/AppSession";
-import type { IEventRepository, EventWithCounts } from "./InMemoryRepository";
+import type { IEventRepository, EventWithCounts } from "./InMemoryWaitlistRepository";
 import { Ok, type Result } from "../lib/result";
  
 type DomainError = { name: string; message: string };
