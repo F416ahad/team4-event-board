@@ -11,7 +11,6 @@ export const findEventById = async (id) => {
   });
 };
 
-
 export const updateEvent = async (eventId, updateData) => {
   return await prisma.event.update({
     where: { id: eventId },
