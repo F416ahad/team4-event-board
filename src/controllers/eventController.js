@@ -63,9 +63,7 @@ export const handleEditEvent = async (req, res) => {
   res.redirect(`/events/${eventId}`);
 };
 
-/**
- * list Events (HTMX support)
- */
+
 export const listEvents = async (req, res) => {
   const result = await eventService.getAllEvents(req.query); // Pass filters if needed
 
