@@ -1,15 +1,43 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
+
+export const findFilteredEvents = async (filters) => {
+  const query = {
+    where: {
+      status: 'published', 
+    }
+  };
+
+  // filter by category if one is selected
+  if (filters.category && filters.category !== 'all') {
+    query.where.category = filters.category;
+  }
+
+  // filter by date range (GTE = Greater Than or Equal, LTE = Less Than or Equal)
+  if (filters.startDate && filters.endDate) {
+    query.where.startDatetime = {
+      gte: filters.startDate,
+      lte: filters.endDate
+    };
+  }
+
+  return await prisma.event.findMany({
+    ...query,
+    orderBy: { startDatetime: 'asc' }
+  });
+};
+
 /**
- * gets an event for the service layer to check 
- * permissions (ownership/role) and state (not past/cancelled).
+ *
+ * used to check permissions (ownership) and state (not past/cancelled).
  */
 export const findEventById = async (id) => {
   return await prisma.event.findUnique({
     where: { id: id },
   });
 };
+
 
 export const updateEvent = async (eventId, updateData) => {
   return await prisma.event.update({
@@ -19,7 +47,7 @@ export const updateEvent = async (eventId, updateData) => {
       description: updateData.description,
       location: updateData.location,
       category: updateData.category,
-      // capacity is a number or null
+      // Ensure capacity is stored as an integer or null
       capacity: updateData.capacity ? parseInt(updateData.capacity) : null,
       status: updateData.status,
       startDatetime: new Date(updateData.startDatetime),

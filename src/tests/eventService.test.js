@@ -1,7 +1,7 @@
 import * as eventService from '../service/eventService.js';
 import * as eventRepo from '../repositories/PrismaEventRepository.js';
 
-// We mock the repository so we don't need a real DB running for logic tests
+// mock the repository so we don't need a real DB running for logic tests
 jest.mock('../repositories/PrismaEventRepository.js');
 
 describe('Feature 3: Event Editing Service Logic', () => {
@@ -11,10 +11,10 @@ describe('Feature 3: Event Editing Service Logic', () => {
     title: 'Old Title',
     organizerId: 'user-123',
     status: 'published',
-    startDatetime: new Date(Date.now() + 86400000) // Future date
+    startDatetime: new Date(Date.now() + 86400000) // future date
   };
   test('should reject editing if the event is in the past', async () => {
-    // Setup: Mock a past event
+    // mock a past event
     const pastEvent = { ...mockEvent, status: 'past' };
     eventRepo.findEventById.mockResolvedValue(pastEvent);
 
