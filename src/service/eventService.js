@@ -1,40 +1,49 @@
 import * as eventRepo from '../repositories/PrismaEventRepository.js';
+import { InvalidFilterError, EventNotFoundError, UnauthorizedError, InvalidStateError } from '../core/errors.js';
 
 /**
- * Feature 6: Get Filtered Events
- * Logic to calculate date ranges for 'this-week' and 'this-weekend'
+ * feat 3: update an existing event
+ * handles business rules: ownership, admin rights, and valid event state.
  */
-export const getFilteredEvents = async (queryParams) => {
-  const { category, timeframe } = queryParams;
-  let startDate = new Date(); // Start from "now"
-  let endDate = new Date('2099-12-31'); // Default to far future
+export const updateEvent = async (eventId, updateData, currentUser) => {
+  // fetch the existing event to check state and permissions
+  const existingEvent = await eventRepo.findEventById(eventId);
 
-  // Timeframe Logic
-  if (timeframe === 'this-week') {
-    endDate = new Date();
-    endDate.setDate(startDate.getDate() + 7);
-  } else if (timeframe === 'this-weekend') {
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 (Sun) to 6 (Sat)
-    
-    // Calculate days until Friday (5)
-    const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
-    startDate = new Date(today);
-    startDate.setDate(today.getDate() + daysUntilFriday);
-    startDate.setHours(0, 0, 0, 0); // Start of Friday
-
-    // End of Sunday
-    endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 2); 
-    endDate.setHours(23, 59, 59, 999);
+  if (!existingEvent) {
+    return { ok: false, error: new EventNotFoundError() };
   }
 
-  // Pass the calculated dates and category to the Repo layer
-  const events = await eventRepo.findFilteredEvents({
-    category: category !== 'all' ? category : null,
-    startDate,
-    endDate
-  });
+  // must be the organizer OR an admin
+  const isOrganizer = currentUser?.id === existingEvent.organizerId;
+  const isAdmin = currentUser?.role === 'admin';
 
-  return { ok: true, value: events };
+  if (!isOrganizer && !isAdmin) {
+    return { ok: false, error: new UnauthorizedError("You do not have permission to edit this event.") };
+  }
+
+  // cannot edit cancelled or past events
+  if (existingEvent.status === 'cancelled' || existingEvent.status === 'past') {
+    return { ok: false, error: new InvalidStateError("Cannot edit an event that is cancelled or already past.") };
+  }
+
+  // if all rules pass, update the database
+  const updated = await eventRepo.updateEvent(eventId, updateData);
+  return { ok: true, value: updated };
+};
+
+/**
+ * feature 2: Get details 
+ */
+export const getEventDetail = async (eventId, currentUser) => {
+  const event = await eventRepo.findEventById(eventId);
+  
+  if (!event) return { ok: false, error: new EventNotFoundError() };
+  
+  // visibility logic (Drafts only for organizer/admin)
+  if (event.status === 'draft') {
+    const canSee = currentUser?.id === event.organizerId || currentUser?.role === 'admin';
+    if (!canSee) return { ok: false, error: new EventNotFoundError() };
+  }
+
+  return { ok: true, value: event };
 };
