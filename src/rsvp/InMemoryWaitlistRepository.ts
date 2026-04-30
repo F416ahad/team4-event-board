@@ -1,4 +1,8 @@
 import { Ok, Err, type Result } from "../lib/result";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+const eventRepository = CreatePrismaEventRepository(prisma);
  
 export type EventStatus = "DRAFT" | "PUBLISHED" | "CANCELLED" | "PAST";
 export type RSVPStatus = "ATTENDING" | "WAITLISTED" | "CANCELLED";
@@ -205,6 +209,6 @@ export class InMemoryEventRepository implements IEventRepository {
   }
 }
  
-export function CreateInMemoryEventRepository(): InMemoryEventRepository {
-  return new InMemoryEventRepository();
+export function CreatePrismaEventRepository(prisma: PrismaClient): IEventRepository {
+  return new CreatePrismaEventRepository(prisma);
 }
