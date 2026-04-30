@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import type { DashboardEventDTO } from "../../src/event_dash/EventService";
 import { DashboardService } from "../../src/event_dash/EventService";
-import { InMemoryEventRepository } from "../../src/rsvp/InMemoryRepository";
+import { InMemoryEventRepository } from "../../src/rsvp/InMemoryWaitlistRepository";
 import { EventService } from "../../src/rsvp/waitlistService";
 import type { UserRole } from "../../src/auth/User";
 
