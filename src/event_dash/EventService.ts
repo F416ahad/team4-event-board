@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 import type { UserRole } from "../auth/User";
 
-export type EventStatus = "DRAFT" | "PUBLISHED" | "CANCELLED" | "PAST";
+export type EventStatus = "active" | "cancelled";
 
 export interface DashboardEventDTO {
   id: string;
@@ -45,24 +45,24 @@ export class DashboardService {
     const filtered =
       role === "admin"
         ? events
-        : events.filter((e) => e.organizerId === userId);
+        : events.filter((e) => e.createdByUserId === userId);
 
     return filtered.map((event) => {
       const attendeeCount = event.rsvps.filter(
-        (r) => r.status === "ATTENDING"
+        (r) => r.status === "going"
       ).length;
 
       return {
         id: event.id,
         title: event.title,
-        organizerId: event.organizerId,
-        status: event.status,
+        organizerId: event.createdByUserId,
+        status: event.status as EventStatus,
         date: event.date ?? null,
-        category: event.category ?? null,
+        category: null,
 
-        capacity: event.capacity,
+        capacity: event.capacity ?? 0,
         attendeeCount,
-        attendingRatio: `${attendeeCount} / ${event.capacity}`,
+        attendingRatio: `${attendeeCount} / ${event.capacity ?? "unlimited"}`,
 
       };
     });
@@ -74,10 +74,8 @@ export class DashboardService {
    */
   groupByStatus(events: DashboardEventDTO[]) {
     return {
-      published: events.filter((e) => e.status === "PUBLISHED"),
-      draft: events.filter((e) => e.status === "DRAFT"),
-      cancelled: events.filter((e) => e.status === "CANCELLED"),
-      past: events.filter((e) => e.status === "PAST"),
+      active: events.filter((e) => e.status === "active"),
+      cancelled: events.filter((e) => e.status === "cancelled"),
     };
   }
 
@@ -93,23 +91,23 @@ export class DashboardService {
 
     if (!event) return null;
     const attendeeCount = event.rsvps.filter(
-      (r) => r.status === "ATTENDING"
+      (r) => r.status === "going"
     ).length;
 
     return {
       id: event.id,
       title: event.title,
       date: event.date ?? null,
-      category: event.category ?? null,
+      category: null,
 
       status: event.status as EventStatus,
 
-      capacity: event.capacity,
+      capacity: event.capacity ?? 0,
       attendeeCount,
 
-      attendingRatio: `${attendeeCount} / ${event.capacity}`,
+      attendingRatio: `${attendeeCount} / ${event.capacity ?? "unlimited"}`,
 
-      organizerId: event.organizerId,
+      organizerId: event.createdByUserId,
     };
   }
   async updateEventStatus(
@@ -125,7 +123,7 @@ export class DashboardService {
 
   if (role === "user") throw new Error("Forbidden");
 
-  if (role === "staff" && event.organizerId !== userId) {
+  if (role === "staff" && event.createdByUserId !== userId) {
     throw new Error("Forbidden");
   }
 

@@ -5,10 +5,23 @@ import type { RSVPRepository } from "./RsvpRepository.ts";
 class InMemoryRsvpRepository implements RSVPRepository {
     constructor(private readonly Events: Event[]) {} // Initializes the repository with an in-memory events array
 
-  async createEvent(title: string, createdByUserId: string): Promise<Result<Event, Error>> {
+  async createEvent(
+    title: string,
+    createdByUserId: string,
+    capacity?: number,
+    _creator?: { email: string; displayName: string; role: "admin" | "staff" | "user" },
+  ): Promise<Result<Event, Error>> {
     try {
       // creates an event with unqiue id and empty rsvp list
-      const event: Event = { id: Date.now().toString(), title, rsvps: [], createdByUserId, status: "active", date: new Date().toISOString()};
+      const event: Event = {
+        id: Date.now().toString(),
+        title,
+        rsvps: [],
+        createdByUserId,
+        status: "active",
+        date: new Date().toISOString(),
+        capacity,
+      };
 
       this.Events.push(event); // Stores the new event in memory
 
@@ -36,6 +49,25 @@ class InMemoryRsvpRepository implements RSVPRepository {
       return Ok(Array.from(this.Events)); // returns a shallow copy of in-memory array
     } catch {
       return Err(new Error("Unable to get events")); // return error message
+    }
+  }
+
+  async updateEvent(
+    eventId: string,
+    updates: { title: string; capacity?: number; date: string; status: Event["status"] },
+  ): Promise<Result<Event | null, Error>> {
+    try {
+      const event = this.Events.find((e) => e.id === eventId) ?? null;
+      if (!event) return Ok(null);
+
+      event.title = updates.title;
+      event.capacity = updates.capacity;
+      event.date = updates.date;
+      event.status = updates.status;
+
+      return Ok(event);
+    } catch {
+      return Err(new Error("Unable to update event"));
     }
   }
 

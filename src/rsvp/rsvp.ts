@@ -2,7 +2,9 @@ export type RSVPStatus = "going" | "waitlisted" | "cancelled"
 
 // rsvp object (single user's response)
 export interface RSVP {
+    id?: string; // optional
     userId: string;
+    eventId?: string; // optional
     status: RSVPStatus;
 }
 

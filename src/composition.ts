@@ -1,4 +1,3 @@
-// src/composition.ts
 import { CreateAdminUserService } from "./auth/AdminUserService";
 import { CreateAuthController } from "./auth/AuthController";
 import { CreateAuthService } from "./auth/AuthService";
@@ -8,17 +7,28 @@ import { CreateApp } from "./app";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
-import { EventService }from "./rsvp/waitlistService";
-import { CreateRsvpController } from "./rsvp/waitlistController";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { CreateArchiveController } from "./events/ArchiveController";
+import { CreateArchiveService } from "./events/ArchiveService";
+import { CreateAttendeeController } from "./events/AttendeeController";
+import { CreateAttendeeService } from "./events/AttendeeService";
+import { CreateInMemoryEventRepository } from "./events/InMemoryEventRepository";
+import { CreateInMemoryRsvpRepository } from "./events/InMemoryRsvpRepository";
 
-// IMPORT event controller
-// @ts-ignore
-import * as eventController from "./controllers/eventController.js";
+// rsvp imports
+import { RsvpService } from "./rsvp/RsvpService";
+import { CreateRsvpController } from "./rsvp/RsvpController";
+
+// comment imports
+import { CommentService } from "./comment/CommentService";
+import { CreateCommentController } from "./comment/CommentController";
+
+import prisma                            from "./lib/prismaClient";
+import { createPrismaRsvpRepository }    from "./rsvp/PrismaRsvpRepository";
+import { createPrismaCommentRepository } from "./comment/PrismaCommentRepository";
+
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
-  const prisma = new PrismaClient();
 
   // ── Auth wiring ───────────────────────────────────────────────────
   const authUsers = CreateInMemoryUserRepository();
@@ -27,9 +37,55 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  const rsvpService = new EventService(prisma);
-  const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
-  
+    // rsvp wiring
+    const rsvpRepo = createPrismaRsvpRepository(prisma);
+    const rsvpService = new RsvpService(rsvpRepo);
+    const rsvpController = CreateRsvpController(rsvpService, resolvedLogger);
 
-  return CreateApp(authController, resolvedLogger, rsvpController, rsvpService, adminUserService, authService);
+    // comment wiring (depends on rsvpService for event lookup)
+    const commentRepo = createPrismaCommentRepository(prisma);
+    const commentService = new CommentService(
+        commentRepo,
+        async (eventId: string) => await rsvpService.getEvent(eventId)
+    );
+    const commentController = CreateCommentController(commentService, resolvedLogger);
+
+  const eventRepo = CreateInMemoryEventRepository();
+  const attendeeRsvpRepo = CreateInMemoryRsvpRepository();
+  const archiveService = CreateArchiveService(eventRepo);
+  const attendeeService = CreateAttendeeService(attendeeRsvpRepo, eventRepo);
+  const archiveController = CreateArchiveController(archiveService);
+  const attendeeController = CreateAttendeeController(attendeeService);
+
+  return CreateApp(
+    authController,
+    archiveController,
+    attendeeController,
+    resolvedLogger,
+    rsvpController,
+    commentController,
+  );
+}
+
+export function compose() {
+  const logger = CreateLoggingService();
+
+  const authUsers        = CreateInMemoryUserRepository();
+  const passwordHasher   = CreatePasswordHasher();
+  const authService      = CreateAuthService(authUsers, passwordHasher);
+  const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
+  const authController   = CreateAuthController(authService, adminUserService, logger);
+
+  const rsvpRepo       = createPrismaRsvpRepository(prisma);
+  const rsvpService    = new RsvpService(rsvpRepo);
+  const rsvpController = CreateRsvpController(rsvpService, logger);
+
+  const commentRepo       = createPrismaCommentRepository(prisma);
+  const commentService    = new CommentService(
+    commentRepo,
+    (eventId) => rsvpService.getEvent(eventId),
+  );
+  const commentController = CreateCommentController(commentService, logger);
+
+  return { authController, logger, rsvpController, commentController };
 }

@@ -4,57 +4,73 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+}
+
+// TODO: Define your project's data models here.
+// Example:
+//
+// model Item {
+//   id        Int      @id @default(autoincrement())
+//   title     String
+//   body      String
+//   status    String   @default("active")
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+model User {
+  id           String    @id @default(uuid()) // random UUID (Universally Unique Identifier)
+  email        String    @unique
+  displayName  String
+  role         String    // "admin", "staff", "user"
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  events   Event[]   @relation("EventCreator") // Names a relation between two models (tables), this case EventCreator
+  rsvps    Rsvp[]
+  comments Comment[]
 }
 
 model Event {
-  id          String   @id @default(uuid())
-  title       String
-  date        DateTime
-  category    String
-  capacity    Int
-  organizerId String
-  status      EventStatus
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  rsvps RSVP[]
+  id               String    @id @default(uuid())
+  title            String
+  capacity         Int?
+  status           String    @default("active") // "active" | "past" | "cancelled"
+  date             DateTime
+  endTime          DateTime?
+  createdByUserId  String
+  createdBy        User      @relation("EventCreator", fields: [createdByUserId], references: [id])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  rsvps    Rsvp[]
+  comments Comment[]
 }
 
-model Member {
-  id          String   @id @default(uuid())
-  email       String   @unique
+model Rsvp {
+  id        String   @id @default(uuid())
+  status    String   // "going" | "waitlisted" | "cancelled"
+  waitlistPosition Int?     
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId]) // One RSVP per user per event, each pair must be unique
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
   displayName String
-  createdAt   DateTime @default(now())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  rsvps RSVP[]
-}
-
-model RSVP {
-  id               String      @id @default(uuid())
-  eventId          String
-  memberId         String
-  status           RSVPStatus
-  waitlistPosition Int?        // null if ATTENDING
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-
-  event  Event  @relation(fields: [eventId], references: [id])
-  member Member @relation(fields: [memberId], references: [id])
-
-  @@unique([eventId, memberId])
-  @@index([eventId, status, createdAt])
-}
-
-enum RSVPStatus {
-  ATTENDING
-  WAITLISTED
-  CANCELLED
-}
-
-enum EventStatus {
-  DRAFT
-  PUBLISHED
-  CANCELLED
-  PAST
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
 }

@@ -1,11 +1,15 @@
 import { Ok, Err, type Result } from "../lib/result";
 import type { RSVPRepository } from "./RsvpRepository";
 import type { RSVPStatus, Event, RSVP } from "./rsvp.ts";
+import type { UserRole } from "../auth/User";
 // import custom errors
 import {
   EventNotFoundError,
   EventCancelledError,
   EventPastError,
+  EventEditNotAuthorizedError,
+  EventInvalidStateError,
+  EventInvalidInputError,
   RsvpToggleFailedError,
 } from "./errors";
 
@@ -158,29 +162,57 @@ export class RsvpService {
     return await this.repo.getRSVP(eventId, userId);
   }
 
-<<<<<<< task/event-comments-structure
   // create event (needs owner id)
-  async createEvent(title: string, createdByUserId: string, capacity?: number,): Promise<Result<Event, Error>> {
-    const result = await this.repo.createEvent(title, createdByUserId);
-=======
-  async createEvent(title: string, capacity?: number): Promise<Result<Event, Error>> {
-    const result = await this.repo.createEvent(title);
->>>>>>> dev
+  async createEvent(
+    title: string,
+    createdByUserId: string,
+    capacity?: number,
+    creator?: { email: string; displayName: string; role: UserRole },
+  ): Promise<Result<Event, Error>> {
+    return await this.repo.createEvent(title, createdByUserId, capacity, creator);
+  }
 
-    if(!result.ok) return result;
+  async editEvent(
+    eventId: string,
+    actorUserId: string,
+    actorRole: UserRole,
+    updates: { title: string; capacity?: number; date: string; status: Event["status"] },
+  ): Promise<Result<Event, Error>> {
+    const eventResult = await this.repo.getEvent(eventId);
+    if (!eventResult.ok) return Err(eventResult.value as Error);
 
-    const event = result.value;
+    const event = eventResult.value;
+    if (!event) return Err(new EventNotFoundError());
 
-    if(capacity !== undefined) 
-    {
-      event.capacity = capacity;
+    const isAdmin = actorRole === "admin";
+    const isOwner = event.createdByUserId === actorUserId;
+    if (!isAdmin && !isOwner) return Err(new EventEditNotAuthorizedError());
+
+    const eventDate = new Date(event.date);
+    if (event.status === "cancelled" || eventDate.toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+      return Err(new EventInvalidStateError());
     }
 
-    return Ok(event);
-  }
-<<<<<<< task/event-comments-structure
+    const title = updates.title.trim();
+    if (!title) return Err(new EventInvalidInputError("Event title is required"));
+    if (updates.capacity !== undefined && updates.capacity < 1) {
+      return Err(new EventInvalidInputError("Capacity must be at least 1"));
+    }
+    if (Number.isNaN(new Date(updates.date).getTime())) {
+      return Err(new EventInvalidInputError("Event date is invalid"));
+    }
 
-  // count how many "going" for an event
+    const updateResult = await this.repo.updateEvent(eventId, {
+      title,
+      capacity: updates.capacity,
+      date: updates.date,
+      status: updates.status,
+    });
+    if (!updateResult.ok) return Err(updateResult.value as Error);
+    if (!updateResult.value) return Err(new EventNotFoundError());
+    return Ok(updateResult.value);
+  }
+// count how many "going" for an event
   async countGoing(eventId: string): Promise<Result<number, Error>> 
   {
     return await this.repo.countGoing(eventId);
@@ -188,23 +220,21 @@ export class RsvpService {
 
   // get event owner ID
   async getEventOwnerId(eventId: string): Promise<Result<string | null, Error>> {
-        const result = await this.repo.getEvent(eventId);
+    const result = await this.repo.getEvent(eventId);
 
-        if(!result.ok) return Err(result.value as Error);
+    if(!result.ok) return Err(result.value as Error);
 
-        let ownerId: string | null;
+    let ownerId: string | null;
 
-        if(result.value && result.value.createdByUserId)
-        {
-            ownerId = result.value.createdByUserId;
-        } 
-        else 
-        {
-            ownerId = null;
-        }
-
-        return Ok(ownerId);
+    if(result.value && result.value.createdByUserId)
+    {
+      ownerId = result.value.createdByUserId;
+    } 
+    else 
+    {
+      ownerId = null;
     }
-=======
->>>>>>> dev
+
+    return Ok(ownerId);
+  }
 }

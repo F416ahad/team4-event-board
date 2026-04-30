@@ -25,7 +25,7 @@ export class EventService {
 
     // ORGANIZER
     const events = await this.prisma.event.findMany({
-      where: { organizerId: userId },
+      where: { createdByUserId: userId },
       include: {
         rsvps: true,
       },
@@ -44,13 +44,13 @@ export class EventService {
 
     if (!event) throw new Error("Event not found");
 
-    if (event.organizerId !== userId) {
+    if (event.createdByUserId !== userId) {
       throw new Error("Unauthorized");
     }
 
     return this.prisma.event.update({
       where: { id: eventId },
-      data: { status: "PUBLISHED" },
+      data: { status: "active" },
     });
   }
 
@@ -64,13 +64,13 @@ export class EventService {
 
     if (!event) throw new Error("Event not found");
 
-    if (event.organizerId !== userId) {
+    if (event.createdByUserId !== userId) {
       throw new Error("Unauthorized");
     }
 
     return this.prisma.event.update({
       where: { id: eventId },
-      data: { status: "CANCELLED" },
+      data: { status: "cancelled" },
     });
   }
 
@@ -79,14 +79,14 @@ export class EventService {
   // -------------------------
   private mapEvent(event: any) {
     const attendeeCount =
-      event.rsvps?.filter((r: any) => r.status === "ATTENDING").length ?? 0;
+      event.rsvps?.filter((r: any) => r.status === "going").length ?? 0;
 
     return {
       id: event.id,
       title: event.title,
-      organizerId: event.organizerId,
+      organizerId: event.createdByUserId,
       status: event.status,
-      capacity: event.capacity,
+      capacity: event.capacity ?? 0,
       attendeeCount,
     };
   }
