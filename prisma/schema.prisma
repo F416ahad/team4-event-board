@@ -4,19 +4,8 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
-
-// TODO: Define your project's data models here.
-// Example:
-//
-// model Item {
-//   id        Int      @id @default(autoincrement())
-//   title     String
-//   body      String
-//   status    String   @default("active")
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
 
 model User {
   id           String    @id @default(uuid()) // random UUID (Universally Unique Identifier)
@@ -27,34 +16,43 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  events   Event[]   @relation("EventCreator") // Names a relation between two models (tables), this case EventCreator
-  rsvps    Rsvp[]
-  comments Comment[]
+  events       Event[]   @relation("EventCreator") // Names a relation between two models (tables), this case EventCreator
+  rsvps        Rsvp[]
+  comments     Comment[]
+  
+  // Added for Feature 14 (Save for Later)
+  savedEvents  SavedEvent[]
 }
 
 model Event {
-  id               String    @id @default(uuid())
-  title            String
-  capacity         Int?
-  status           String    @default("active") // "active" | "past" | "cancelled"
-  date             DateTime
-  endTime          DateTime?
-  createdByUserId  String
-  createdBy        User      @relation("EventCreator", fields: [createdByUserId], references: [id])
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  rsvps    Rsvp[]
-  comments Comment[]
+  id              String    @id @default(uuid())
+  title           String
+  description     String?   // Added for Feature 10 Search
+  location        String?   // Added for Feature 10 Search
+  capacity        Int?
+  status          String    @default("active") // "active" | "past" | "cancelled" | "published"
+  date            DateTime
+  endTime         DateTime? // Kept your teammate's new field!
+  createdByUserId String
+  createdBy       User      @relation("EventCreator", fields: [createdByUserId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  rsvps           Rsvp[]
+  comments        Comment[]
+  
+  // Added for Feature 14 (Save for Later)
+  savedEvents     SavedEvent[]
 }
 
 model Rsvp {
-  id        String   @id @default(uuid())
-  status    String   // "going" | "waitlisted" | "cancelled"
+  id               String   @id @default(uuid())
+  status           String   // "going" | "waitlisted" | "cancelled"
   waitlistPosition Int?     
-  userId    String
-  eventId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId           String
+  eventId          String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   user  User  @relation(fields: [userId], references: [id])
   event Event @relation(fields: [eventId], references: [id])
@@ -63,14 +61,28 @@ model Rsvp {
 }
 
 model Comment {
-  id        String   @id @default(uuid())
-  content   String
+  id          String   @id @default(uuid())
+  content     String
   displayName String
-  userId    String
-  eventId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId      String
+  eventId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user  User  @relation(fields: [userId], references: [id])
   event Event @relation(fields: [eventId], references: [id])
+}
+
+// ── Feature 14: Save for Later ───────────────────────────────────────
+
+model SavedEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId]) 
 }
