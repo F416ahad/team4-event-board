@@ -5,7 +5,6 @@ import type { IAppBrowserSession } from "../session/AppSession";
 import type { UserRole } from "../auth/User";
 import { Result } from "../lib/result";
 
-// import custom error types
 import {
   EventNotFoundError,
   EventCancelledError,
@@ -15,40 +14,82 @@ import {
   EventInvalidInputError,
 } from "./errors";
 
-// Controller interface for rsvp
 export interface IRsvpController {
-  toggleRSVP(res: Response, eventId: string, userId: string, session: IAppBrowserSession): Promise<void>;
-  showEvents(res: Response, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
-  showEvent(res: Response, eventId: string, session: IAppBrowserSession, currentUserId?: string): Promise<void>;
-  showEditEventForm(res: Response, eventId: string, session: IAppBrowserSession, actorUserId: string, actorRole: UserRole,): Promise<void>;
-  updateEvent(res: Response, eventId: string, session: IAppBrowserSession, actorUserId: string, actorRole: UserRole,
-    updates: { title: string; capacity?: number; date: string; status: "active" | "cancelled" },): Promise<void>;
-  createEvent(res: Response, title: string, capacity: number | undefined, session: IAppBrowserSession, userId: string,
-    creator: { email: string; displayName: string; role: UserRole },): Promise<void>;
+  toggleRSVP(
+    res: Response,
+    eventId: string,
+    userId: string,
+    session: IAppBrowserSession
+  ): Promise<void>;
+  showEvents(
+    res: Response,
+    session: IAppBrowserSession,
+    currentUserId?: string
+  ): Promise<void>;
+  showEvent(
+    res: Response,
+    eventId: string,
+    session: IAppBrowserSession,
+    currentUserId?: string
+  ): Promise<void>;
+  showEditEventForm(
+    res: Response,
+    eventId: string,
+    session: IAppBrowserSession,
+    actorUserId: string,
+    actorRole: UserRole
+  ): Promise<void>;
+  updateEvent(
+    res: Response,
+    eventId: string,
+    session: IAppBrowserSession,
+    actorUserId: string,
+    actorRole: UserRole,
+    updates: {
+      title: string;
+      capacity?: number;
+      date: string;
+      status: "active" | "cancelled";
+    }
+  ): Promise<void>;
+  createEvent(
+    res: Response,
+    title: string,
+    capacity: number | undefined,
+    session: IAppBrowserSession,
+    userId: string,
+    creator: { email: string; displayName: string; role: UserRole }
+  ): Promise<void>;
   getEventOwnerId(eventId: string): Promise<Result<string | null, Error>>;
-  getUserRsvpStatus(res: Response, eventId: string, userId: string): Promise<void>;
+  getUserRsvpStatus(
+    res: Response,
+    eventId: string,
+    userId: string
+  ): Promise<void>;
   getAttendeeCount(res: Response, eventId: string): Promise<void>;
-  getRsvpButtonPartial(res: Response, eventId: string, userId: string): Promise<void>; 
+  getRsvpButtonPartial(
+    res: Response,
+    eventId: string,
+    userId: string
+  ): Promise<void>;
 }
 
 class RsvpController implements IRsvpController {
   constructor(
-    private readonly service: RsvpService, // Inject RSVP service dependency
-    private readonly logger: ILoggingService // Inject logger dependency
+    private readonly service: RsvpService,
+    private readonly logger: ILoggingService
   ) {}
 
-  // Maps service errors to HTTP status codes
   private mapErrorStatus(error: Error): number {
-    // error type handling
-    if(error instanceof EventNotFoundError) return 404;   // resource missing
-    if(error instanceof EventCancelledError) return 404;  // permanently gone (cancelled)
-    if(error instanceof EventPastError) return 400;       // invalid request for past event
-    if(error instanceof EventEditNotAuthorizedError) return 403; // permission issue
-    if(error instanceof EventInvalidStateError) return 409; // capacity conflict
-    if(error instanceof EventInvalidInputError) return 400; // invalid request
-    if(error.message.toLowerCase().includes("full")) return 409;      // capacity conflict
-    if(error.message.toLowerCase().includes("not allowed")) return 403; // permission issue
-    return 500; // Unexpected server failure/default fallback for unexpected errors
+    if (error instanceof EventNotFoundError) return 404;
+    if (error instanceof EventCancelledError) return 404;
+    if (error instanceof EventPastError) return 400;
+    if (error instanceof EventEditNotAuthorizedError) return 403;
+    if (error instanceof EventInvalidStateError) return 409;
+    if (error instanceof EventInvalidInputError) return 400;
+    if (error.message.toLowerCase().includes("full")) return 409;
+    if (error.message.toLowerCase().includes("not allowed")) return 403;
+    return 500;
   }
 
   async toggleRSVP(
@@ -57,33 +98,42 @@ class RsvpController implements IRsvpController {
     userId: string,
     session: IAppBrowserSession
   ): Promise<void> {
-    const result = await this.service.toggleRSVP(eventId, userId); // call service layer
+    const result = await this.service.toggleRSVP(eventId, userId);
 
-    if(result.ok === false) 
-    {
-      const status = this.mapErrorStatus(result.value);  // map error to HTTP status
+    if (!result.ok) {
+      const error = result.value as Error;
+      const status = this.mapErrorStatus(error);
+      
+      this.logger.warn(`RSVP toggle failed: ${error.message}`);
 
-      this.logger.warn(
-        `RSVP toggle failed: ${result.value.message}` // log warning for failure
-      );
-
-      // send HTTP error response with status code and display error message inside an HTML div
-      res.status(status).send(`<div class="error">${result.value.message}</div>`); 
-
-      return; // stop running if get error response
+      res
+        .status(status)
+        .send(`<div class="error">${error.message}</div>`);
+      return;
     }
 
-    this.logger.info(
-      `RSVP toggled for user=${userId} event=${eventId}` // successful login
-    );
+    const { cancelled, promoted } = result.value;
 
-    // after successful toggle, get updated data to render HTMX partial
+    if (cancelled) {
+      this.logger.info(
+        `RSVP cancelled for user=${userId} event=${eventId} (waitlist promotion may follow)`
+      );
+    } else {
+      this.logger.info(`RSVP toggled for user=${userId} event=${eventId}`);
+    }
+
+    if (promoted) {
+      this.logger.info(
+        `Waitlisted user promoted: user=${promoted.userId} event=${eventId}`
+      );
+    }
+
     const rsvpResult = await this.service.getUserRsvp(eventId, userId);
     const countResult = await this.service.countGoing(eventId);
-    const userStatus = rsvpResult.ok ? rsvpResult.value?.status : null; // if RSVP fetch succeeded, get the user's status (or undefined if missing), otherwise null
-    const attendeeCount = countResult.ok ? countResult.value : 0; // if attendee count fetch succeeded, use the count, otherwise default to 0
 
-    // render the button partial (no layout, just the fragment)
+    const userStatus = rsvpResult.ok ? rsvpResult.value?.status : null;
+    const attendeeCount = countResult.ok ? countResult.value : 0;
+
     res.render("partials/rsvp-button", {
       eventId,
       userStatus,
@@ -92,11 +142,13 @@ class RsvpController implements IRsvpController {
     });
   }
 
-   // show all events
-   async showEvents(res: Response, session: IAppBrowserSession, currentUserId?: string): Promise<void> {
+  async showEvents(
+    res: Response,
+    session: IAppBrowserSession,
+    currentUserId?: string
+  ): Promise<void> {
     const result = await this.service.listEvents();
-    if(!result.ok) 
-    {
+    if (!result.ok) {
       const error = result.value as Error;
       this.logger.error(`Failed to list events: ${error.message}`);
       res.status(500).render("events/index", {
@@ -107,6 +159,7 @@ class RsvpController implements IRsvpController {
       });
       return;
     }
+
     res.render("events/index", {
       session,
       events: result.value,
@@ -116,13 +169,19 @@ class RsvpController implements IRsvpController {
     });
   }
 
-    // show a single event with user's rsvp status
-   async showEvent(res: Response, eventId: string, session: IAppBrowserSession, currentUserId?: string): Promise<void> {
+  async showEvent(
+    res: Response,
+    eventId: string,
+    session: IAppBrowserSession,
+    currentUserId?: string
+  ): Promise<void> {
     const result = await this.service.getEvent(eventId);
 
-    if(!result.ok || !result.value) 
-    {
-      const errorMsg = result.ok === false ? (result.value as Error).message : "Event not found";
+    if (!result.ok || !result.value) {
+      const errorMsg =
+        result.ok === false
+          ? (result.value as Error).message
+          : "Event not found";
       this.logger.warn(`Event not found: ${eventId}`);
       res.status(404).render("events/show", {
         session,
@@ -137,7 +196,7 @@ class RsvpController implements IRsvpController {
     const rsvpResult = await this.service.getUserRsvp(eventId, currentUserId);
     const userRsvp = rsvpResult.ok ? rsvpResult.value : null;
 
-    const countResult = await this.service.countGoing(eventId); // fetch attendee count
+    const countResult = await this.service.countGoing(eventId);
     const attendeeCount = countResult.ok ? countResult.value : 0;
 
     res.render("events/show", {
@@ -154,19 +213,29 @@ class RsvpController implements IRsvpController {
     eventId: string,
     session: IAppBrowserSession,
     actorUserId: string,
-    actorRole: UserRole,
+    actorRole: UserRole
   ): Promise<void> {
     const eventResult = await this.service.getEvent(eventId);
     if (!eventResult.ok || !eventResult.value) {
-      res.status(404).render("events/show", { session, event: null, userRsvp: null, attendeeCount: 0, error: "Event not found" });
+      res.status(404).render("events/show", {
+        session,
+        event: null,
+        userRsvp: null,
+        attendeeCount: 0,
+        error: "Event not found",
+      });
       return;
     }
 
     const event = eventResult.value;
     const isAdmin = actorRole === "admin";
     const isOwner = event.createdByUserId === actorUserId;
+
     if (!isAdmin && !isOwner) {
-      res.status(403).render("partials/error", { message: "Only the organizer or an admin can edit this event", layout: false });
+      res.status(403).render("partials/error", {
+        message: "Only the organizer or an admin can edit this event",
+        layout: false,
+      });
       return;
     }
 
@@ -179,16 +248,36 @@ class RsvpController implements IRsvpController {
     session: IAppBrowserSession,
     actorUserId: string,
     actorRole: UserRole,
-    updates: { title: string; capacity?: number; date: string; status: "active" | "cancelled" },
+    updates: {
+      title: string;
+      capacity?: number;
+      date: string;
+      status: "active" | "cancelled";
+    }
   ): Promise<void> {
-    const result = await this.service.editEvent(eventId, actorUserId, actorRole, updates);
+    const result = await this.service.editEvent(
+      eventId,
+      actorUserId,
+      actorRole,
+      updates
+    );
+
     if (!result.ok) {
       const error = result.value as Error;
       const status = this.mapErrorStatus(error);
       const eventResult = await this.service.getEvent(eventId);
+
       res.status(status).render("events/edit", {
         session,
-        event: eventResult.ok && eventResult.value ? eventResult.value : { id: eventId, ...updates, createdByUserId: actorUserId, rsvps: [] },
+        event:
+          eventResult.ok && eventResult.value
+            ? eventResult.value
+            : {
+                id: eventId,
+                ...updates,
+                createdByUserId: actorUserId,
+                rsvps: [],
+              },
         error: error.message,
       });
       return;
@@ -196,15 +285,14 @@ class RsvpController implements IRsvpController {
 
     res.redirect(`/events/${eventId}`);
   }
-    
-    // create an event (admin/staff)
-   async createEvent(
+
+  async createEvent(
     res: Response,
     title: string,
     capacity: number | undefined,
     session: IAppBrowserSession,
     userId: string,
-    creator: { email: string; displayName: string; role: UserRole },
+    creator: { email: string; displayName: string; role: UserRole }
   ): Promise<void> {
     if (!title) {
       res.status(400).render("events/new", {
@@ -215,9 +303,14 @@ class RsvpController implements IRsvpController {
       return;
     }
 
-    const result = await this.service.createEvent(title, userId, capacity, creator);
-    if(!result.ok) 
-    {
+    const result = await this.service.createEvent(
+      title,
+      userId,
+      capacity,
+      creator
+    );
+
+    if (!result.ok) {
       const error = result.value as Error;
       this.logger.error(`Failed to create event: ${error.message}`);
       res.status(400).render("events/new", {
@@ -227,16 +320,15 @@ class RsvpController implements IRsvpController {
       });
       return;
     }
+
     this.logger.info(`Event created: ${title}`);
     res.redirect("/events");
   }
 
-  // get getEventOwnerId for comment controller
   async getEventOwnerId(eventId: string): Promise<Result<string | null, Error>> {
-        return await this.service.getEventOwnerId(eventId);
-    }
+    return await this.service.getEventOwnerId(eventId);
+  }
 
-  // get current user's rsvp status for an event
   async getUserRsvpStatus(
     res: Response,
     eventId: string,
@@ -244,10 +336,10 @@ class RsvpController implements IRsvpController {
   ): Promise<void> {
     const result = await this.service.getUserRsvp(eventId, userId);
 
-    if(!result.ok) 
-    {
-      // Cast to Error because ok === false
-      res.status(500).json({ error: (result.value as Error).message });
+    if (!result.ok) {
+      res
+        .status(500)
+        .json({ error: (result.value as Error).message });
       return;
     }
 
@@ -255,21 +347,22 @@ class RsvpController implements IRsvpController {
     res.json({ status });
   }
 
-  // Get attendee count (number of "going") for an event
   async getAttendeeCount(
     res: Response,
     eventId: string
   ): Promise<void> {
     const result = await this.service.countGoing(eventId);
+
     if (!result.ok) {
-      // Cast to Error because ok === false
-      res.status(500).json({ error: (result.value as Error).message });
+      res
+        .status(500)
+        .json({ error: (result.value as Error).message });
       return;
     }
+
     res.json({ count: result.value });
   }
 
-  // New method to serve the RSVP button partial (for initial load and HTMX)
   async getRsvpButtonPartial(
     res: Response,
     eventId: string,
@@ -277,6 +370,7 @@ class RsvpController implements IRsvpController {
   ): Promise<void> {
     const rsvpResult = await this.service.getUserRsvp(eventId, userId);
     const countResult = await this.service.countGoing(eventId);
+
     const userStatus = rsvpResult.ok ? rsvpResult.value?.status : null;
     const attendeeCount = countResult.ok ? countResult.value : 0;
 
@@ -289,10 +383,9 @@ class RsvpController implements IRsvpController {
   }
 }
 
-// create factory function to create controller instance
 export function CreateRsvpController(
   service: RsvpService,
   logger: ILoggingService
 ): IRsvpController {
-  return new RsvpController(service, logger); // return controller
+  return new RsvpController(service, logger);
 }

@@ -25,6 +25,9 @@ import prisma                            from "./lib/prismaClient";
 import { createPrismaRsvpRepository }    from "./rsvp/PrismaRsvpRepository";
 import { createPrismaCommentRepository } from "./comment/PrismaCommentRepository";
 
+// event dashboard imports
+import { DashboardService } from "./event_dash/EventService";
+import { CreateDashboardController, DashboardController } from "./event_dash/EventController";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
@@ -49,6 +52,8 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     );
     const commentController = CreateCommentController(commentService, resolvedLogger);
 
+
+
 // Feature 11 & 12 — Prisma-backed repositories
   const eventRepo = CreatePrismaEventRepository(prisma);
   const attendeeRsvpRepo = CreatePrismaAttendeeRsvpRepository(prisma);
@@ -61,6 +66,11 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   archiveService.transitionExpired();
   setInterval(() => archiveService.transitionExpired(), 60_000);
 
+  // event dashboard wiring 
+  const dashboardService = new DashboardService(prisma);
+  const dashboardController = CreateDashboardController(dashboardService, resolvedLogger);
+
+  
   return CreateApp(
     authController,
     archiveController,
@@ -68,6 +78,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     resolvedLogger,
     rsvpController,
     commentController,
+    dashboardController,
   );
 }
 

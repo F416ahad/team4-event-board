@@ -469,6 +469,19 @@ class ExpressApp implements IApp {
         );
       }),
     );
+    //get the waitlist position for current user 
+    this.app.get("/events/:eventId/waitlist/position", asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) return;
+
+      const store = sessionStore(req);
+      const user = getAuthenticatedUser(store);
+
+      if(!user)
+      {res.status(401).send("Unauthorized"); 
+        return;}
+      const eventId = this.getParam(req.params.eventId);
+      await this.rsvpController?.getUserRsvpStatus(res, eventId, user.userId);
+    }));
 
     this.app.post("/admin/users/:id/delete", asyncHandler(async (req, res) => {
       if (!this.requireRole(req, res, ["admin"], "Only Admin can manage users.")) return;
@@ -489,6 +502,36 @@ class ExpressApp implements IApp {
       );
     }));
 
+    // ── Feature 9: Waitlist Promotion ──────────────────────────────────────────────────────────
+    // Get RSVP status
+    this.app.get("/events/:eventId/rsvp/status", asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) return;
+      const store = sessionStore(req);  
+      const user = getAuthenticatedUser(store); 
+      
+      if (!user) {
+        res.status(401).send("Unauthorized");
+        return;
+      }
+      const eventId = this.getParam(req.params.eventId);
+      await this.rsvpController.getUserRsvpStatus(res, eventId, user.userId);
+    }));
+
+    // Get attendee count (JSON)
+    this.app.get(
+      "/events/:eventId/rsvp/count",
+      asyncHandler(async (req, res) => {
+        const eventId = this.getParam(req.params.eventId);
+
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
+
+        await this.rsvpController.getAttendeeCount(res, eventId);
+      })
+    );
+
     // ── Home ──────────────────────────────────────────────────────────
 
     this.app.get("/home", asyncHandler(async (req, res) => {
@@ -508,6 +551,31 @@ class ExpressApp implements IApp {
       }
     }));
 
+    // publish event (admin or staff only)
+    this.app.post("/dashboard/events/:id/publish", asyncHandler(async (req, res) => {
+      if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can modify events.")) {
+        return;
+      }
+      const session = touchAppSession(sessionStore(req));
+      const eventId = typeof req.params.id === "string" ? req.params.id : "";
+
+      if (this.dashboardController) {
+        await this.dashboardController.publishEvent(res, eventId, session);
+      }
+    }));
+
+    // cancel event (admin or staff only)
+    this.app.post("/dashboard/events/:id/cancel", asyncHandler(async (req, res) => {
+      if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can modify events.")) {
+        return;
+      }
+      const session = touchAppSession(sessionStore(req));
+      const eventId = typeof req.params.id === "string" ? req.params.id : "";
+      if (this.dashboardController) {
+        await this.dashboardController.cancelEvent(res, eventId, session);
+      }
+    }));
+    
     // ── Search ────────────────────────────────────────────────────────
 
     this.app.get("/events/search", asyncHandler(async (req, res) => {

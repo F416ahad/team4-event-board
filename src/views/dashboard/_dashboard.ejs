@@ -1,0 +1,63 @@
+<div class="grid gap-8">
+
+  <!-- Draft Events -->
+  <section>
+    <h2 class="text-xl font-semibold mb-3">Draft Events</h2>
+
+    <% (grouped.draft || []).forEach(event => { %>
+      <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
+        <%- include("./_event-row", { event, session }) %>
+      </div>
+    <% }) %>
+
+    <% if ((grouped.draft || []).length === 0) { %>
+      <p class="text-slate-500">No draft events.</p>
+    <% } %>
+  </section>
+
+  <!-- Active Events -->
+  <section>
+    <h2 class="text-xl font-semibold mb-3">Active Events</h2>
+
+    <% (grouped.active || []).forEach(event => { %>
+      <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
+        <%- include("./_event-row", { event, session }) %>
+      </div>
+    <% }) %>
+
+    <% if ((grouped.active || []).length === 0) { %>
+      <p class="text-slate-500">No active events.</p>
+    <% } %>
+  </section>
+
+  <!-- Cancelled Events -->
+  <section>
+    <h2 class="text-xl font-semibold mb-3">Cancelled Events</h2>
+
+    <% (grouped.cancelled || []).forEach(event => { %>
+      <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
+        <%- include("./_event-row", { event, session }) %>
+      </div>
+    <% }) %>
+
+    <% if ((grouped.cancelled || []).length === 0) { %>
+      <p class="text-slate-500">No cancelled events.</p>
+    <% } %>
+  </section>
+
+  <!-- Past Events -->
+  <section>
+    <h2 class="text-xl font-semibold mb-3">Past Events</h2>
+
+    <% (grouped.past || []).forEach(event => { %>
+      <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
+        <%- include("./_event-row", { event, session }) %>
+      </div>
+    <% }) %>
+
+    <% if ((grouped.past || []).length === 0) { %>
+      <p class="text-slate-500">No past events.</p>
+    <% } %>
+  </section>
+
+</div>
