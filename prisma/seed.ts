@@ -21,7 +21,7 @@ async function main() {
   });
 
   // Create past events with endTime set
-  const event1 = await prisma.event.upsert({
+    const event1 = await prisma.event.upsert({
     where: { id: "seed-event-1" },
     update: {},
     create: {
@@ -31,6 +31,7 @@ async function main() {
       date: past(5),
       endTime: past(4),
       capacity: 200,
+      category: "academic",
       createdByUserId: organizer.id,
     },
   });
@@ -45,6 +46,7 @@ async function main() {
       date: past(30),
       endTime: past(6),
       capacity: 50,
+      category: "tech",
       createdByUserId: organizer.id,
     },
   });
