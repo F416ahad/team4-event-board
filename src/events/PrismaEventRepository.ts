@@ -63,7 +63,7 @@ export class PrismaEventRepository implements IEventRepository {
       title: row.title,
       description: '',
       location: '',
-      category: 'other' as EventCategory,
+      category: (row.category ?? 'other') as EventCategory,
       organizerId: row.createdByUserId,
       startTime: row.date,
       endTime: row.endTime ?? row.date,

@@ -165,4 +165,5 @@ class PrismaRsvpRepository implements RSVPRepository {
       return Err(e instanceof Error ? e : new Error(String(e)));
     }
   }
+  
 }

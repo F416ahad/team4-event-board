@@ -36,9 +36,10 @@ model Event {
   id               String    @id @default(uuid())
   title            String
   capacity         Int?
-  status           String    @default("active") // "active" | "past" | "cancelled"
+  status           String    @default("active")
   date             DateTime
   endTime          DateTime?
+  category         String    @default("other")
   createdByUserId  String
   createdBy        User      @relation("EventCreator", fields: [createdByUserId], references: [id])
   createdAt        DateTime  @default(now())
