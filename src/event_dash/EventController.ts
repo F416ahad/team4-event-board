@@ -43,6 +43,7 @@ export class DashboardController implements IDashboardController {
    *   grouped  — { active: DTO[], past: DTO[], cancelled: DTO[] }
    */
   async showDashboard(res: Response, session: IAppBrowserSession): Promise<void> {
+    console.log("Rendering dashboard with grouped:");
     const auth = session.authenticatedUser;
 
     if (!auth) {
