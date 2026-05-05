@@ -19,4 +19,10 @@ export interface RSVPRepository {
     addRSVP(eventId: string, userId: string, status: RSVPStatus): Promise<Result<void, Error>>; // return is void in a result
     getRSVP(eventId: string, userId: string): Promise<Result<RSVP | null, Error>>; // return RSVP object or null in a result
     countGoing(eventId: string): Promise<Result<number, Error>>; // return number in a result
+    
+    // NEW — get earliest waitlisted RSVP
+    getNextWaitlisted(eventId: string): Promise<Result<RSVP | null, Error>>;
+
+    // NEW — update RSVP status (going, waitlisted, cancelled)
+    updateRSVP(eventId: string, userId: string, status: RSVPStatus): Promise<Result<RSVP, Error>>;
 }

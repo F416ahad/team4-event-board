@@ -3,6 +3,7 @@ import { Ok, Err, type Result } from "../lib/result";
 import type { RSVPRepository } from "./RsvpRepository";
 import type { Event, RSVP, RSVPStatus } from "./rsvp";
 
+
 export function createPrismaRsvpRepository(prisma: PrismaClient): RSVPRepository {
   return new PrismaRsvpRepository(prisma);
 }
@@ -161,6 +162,28 @@ class PrismaRsvpRepository implements RSVPRepository {
     try {
       const count = await this.prisma.rsvp.count({ where: { eventId, status: "going" } });
       return Ok(count);
+    } catch (e) {
+      return Err(e instanceof Error ? e : new Error(String(e)));
+    }
+  }
+  async updateRSVP(eventId: string, userId: string, status: RSVPStatus): Promise<Result<RSVP, Error>> {
+    try {
+      const row = await this.prisma.rsvp.update({
+      where: { userId_eventId: { userId, eventId } },
+      data : {status}
+      });
+      return Ok(toRsvp(row));
+        } catch (e) {
+          return Err(e instanceof Error ? e : new Error(String(e)));
+    }
+  }
+  async getNextWaitlisted(eventId: string): Promise<Result<RSVP | null, Error>> {
+    try { 
+      const row = await this.prisma.rsvp.findFirst({
+        where: { eventId, status: "waitlisted" },
+        orderBy: { createdAt: "asc" }, // earliest waitlisted
+      });
+      return Ok(row ? toRsvp(row) : null);
     } catch (e) {
       return Err(e instanceof Error ? e : new Error(String(e)));
     }

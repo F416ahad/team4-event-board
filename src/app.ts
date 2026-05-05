@@ -502,6 +502,36 @@ class ExpressApp implements IApp {
       );
     }));
 
+    // ── Feature 9: Waitlist Promotion ──────────────────────────────────────────────────────────
+    // Get RSVP status
+    this.app.get("/events/:eventId/rsvp/status", asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) return;
+      const store = sessionStore(req);  
+      const user = getAuthenticatedUser(store); 
+      
+      if (!user) {
+        res.status(401).send("Unauthorized");
+        return;
+      }
+      const eventId = this.getParam(req.params.eventId);
+      await this.rsvpController.getUserRsvpStatus(res, eventId, user.userId);
+    }));
+
+    // Get attendee count (JSON)
+    this.app.get(
+      "/events/:eventId/rsvp/count",
+      asyncHandler(async (req, res) => {
+        const eventId = this.getParam(req.params.eventId);
+
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
+
+        await this.rsvpController.getAttendeeCount(res, eventId);
+      })
+    );
+
     // ── Home ──────────────────────────────────────────────────────────
 
     this.app.get("/home", asyncHandler(async (req, res) => {

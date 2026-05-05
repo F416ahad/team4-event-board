@@ -52,6 +52,8 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     );
     const commentController = CreateCommentController(commentService, resolvedLogger);
 
+
+
 // Feature 11 & 12 — Prisma-backed repositories
   const eventRepo = CreatePrismaEventRepository(prisma);
   const attendeeRsvpRepo = CreatePrismaAttendeeRsvpRepository(prisma);
