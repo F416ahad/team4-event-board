@@ -11,9 +11,8 @@ import { CreateArchiveController } from "./events/ArchiveController";
 import { CreateArchiveService } from "./events/ArchiveService";
 import { CreateAttendeeController } from "./events/AttendeeController";
 import { CreateAttendeeService } from "./events/AttendeeService";
-import { CreateInMemoryEventRepository } from "./events/InMemoryEventRepository";
-import { CreateInMemoryRsvpRepository } from "./events/InMemoryRsvpRepository";
-
+import { CreatePrismaEventRepository } from "./events/PrismaEventRepository";
+import { CreatePrismaRsvpRepository as CreatePrismaAttendeeRsvpRepository } from "./events/PrismaRsvpRepository";
 // rsvp imports
 import { RsvpService } from "./rsvp/RsvpService";
 import { CreateRsvpController } from "./rsvp/RsvpController";
@@ -21,7 +20,7 @@ import { CreateRsvpController } from "./rsvp/RsvpController";
 // comment imports
 import { CommentService } from "./comment/CommentService";
 import { CreateCommentController } from "./comment/CommentController";
-
+``
 import prisma                            from "./lib/prismaClient";
 import { createPrismaRsvpRepository }    from "./rsvp/PrismaRsvpRepository";
 import { createPrismaCommentRepository } from "./comment/PrismaCommentRepository";
@@ -50,12 +49,17 @@ export function createComposedApp(logger?: ILoggingService): IApp {
     );
     const commentController = CreateCommentController(commentService, resolvedLogger);
 
-  const eventRepo = CreateInMemoryEventRepository();
-  const attendeeRsvpRepo = CreateInMemoryRsvpRepository();
+// Feature 11 & 12 — Prisma-backed repositories
+  const eventRepo = CreatePrismaEventRepository(prisma);
+  const attendeeRsvpRepo = CreatePrismaAttendeeRsvpRepository(prisma);
   const archiveService = CreateArchiveService(eventRepo);
   const attendeeService = CreateAttendeeService(attendeeRsvpRepo, eventRepo);
   const archiveController = CreateArchiveController(archiveService);
   const attendeeController = CreateAttendeeController(attendeeService);
+
+  // transition expired events on startup, then every 60 seconds
+  archiveService.transitionExpired();
+  setInterval(() => archiveService.transitionExpired(), 60_000);
 
   return CreateApp(
     authController,
