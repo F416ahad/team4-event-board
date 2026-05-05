@@ -237,13 +237,13 @@ class RsvpController implements IRsvpController {
     }
 
   // get current user's rsvp status for an event
+  // this should be categorized: "going" | "waitlisted" | "cancelled"
   async getUserRsvpStatus(
     res: Response,
     eventId: string,
     userId: string
-  ): Promise<void> {
+  ) {
     const result = await this.service.getUserRsvp(eventId, userId);
-
     if(!result.ok) 
     {
       // Cast to Error because ok === false

@@ -1,0 +1,34 @@
+<div class="event-card <%= event.status %>">
+  <h3><%= event.title %></h3>
+
+  <p>Date: <%= event.date ? event.date.toDateString() : "No date" %></p>
+  <p>Category: <%= event.category ?? "Uncategorized" %></p>
+  <p>Attendance: <%= event.attendingRatio %></p>
+
+  <% if (session.authenticatedUser.role === "admin") { %>
+    <p>Organizer: <%= event.organizerName ?? "Unknown" %></p>
+  <% } %>
+
+  <!-- Action buttons -->
+  <% if (event.status === "active") { %>
+    <form
+      hx-post="/dashboard/events/<%= event.id %>/cancel"
+      hx-target="#event-<%= event.id %>"
+      hx-swap="outerHTML"
+    >
+      <button class="btn-cancel">Cancel</button>
+    </form>
+  <% } %>
+
+  <% if (event.status === "cancelled") { %>
+    <form
+      hx-post="/dashboard/events/<%= event.id %>/publish"
+      hx-target="#event-<%= event.id %>"
+      hx-swap="outerHTML"
+    >
+      <button class="btn-publish">Reactivate</button>
+    </form>
+  <% } %>
+
+  <!-- Past events have no actions -->
+</div>

@@ -469,6 +469,18 @@ class ExpressApp implements IApp {
         );
       }),
     );
+    //get the waitlist position for current user 
+    this.app.get("/events/:eventId/waitlist/position", asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) return;
+
+      const store = sessionStore(req);
+      const user = getAuthenticatedUser(store);
+
+      if(!user)
+      {res.status(401).send("Unauthorized"); 
+        return;}
+      await this.rsvpController?.getUserRsvpStatus(res, eventId, user.userId);
+    }));
 
     this.app.post("/admin/users/:id/delete", asyncHandler(async (req, res) => {
       if (!this.requireRole(req, res, ["admin"], "Only Admin can manage users.")) return;
@@ -508,6 +520,31 @@ class ExpressApp implements IApp {
       }
     }));
 
+    // publish event (admin or staff only)
+    this.app.post("/dashboard/events/:id/publish", asyncHandler(async (req, res) => {
+      if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can modify events.")) {
+        return;
+      }
+      const session = touchAppSession(sessionStore(req));
+      const eventId = typeof req.params.id === "string" ? req.params.id : "";
+
+      if (this.dashboardController) {
+        await this.dashboardController.publishEvent(res, eventId, session);
+      }
+    }));
+
+    // cancel event (admin or staff only)
+    this.app.post("/dashboard/events/:id/cancel", asyncHandler(async (req, res) => {
+      if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can modify events.")) {
+        return;
+      }
+      const session = touchAppSession(sessionStore(req));
+      const eventId = typeof req.params.id === "string" ? req.params.id : "";
+      if (this.dashboardController) {
+        await this.dashboardController.cancelEvent(res, eventId, session);
+      }
+    }));
+    
     // ── Search ────────────────────────────────────────────────────────
 
     this.app.get("/events/search", asyncHandler(async (req, res) => {
