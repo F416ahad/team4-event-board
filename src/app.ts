@@ -139,7 +139,7 @@ class ExpressApp implements IApp {
       asyncHandler(async (req, res) => {
         this.logger.info("GET /");
         const store = sessionStore(req);
-        res.redirect(isAuthenticatedSession(store) ? "/home" : "/login");
+        res.redirect(isAuthenticatedSession(store) ? "/dashboard" : "/login");
       }),
     );
 
@@ -150,7 +150,7 @@ class ExpressApp implements IApp {
         const browserSession = recordPageView(store);
 
         if (getAuthenticatedUser(store)) {
-          res.redirect("/home");
+          res.redirect("/dashboard");
           return;
         }
 
@@ -544,7 +544,6 @@ class ExpressApp implements IApp {
     // ── Dashboard ─────────────────────────────────────────────────────
 
     this.app.get("/dashboard", asyncHandler(async (req, res) => {
-      if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can view the dashboard.")) return;
       const browserSession = recordPageView(sessionStore(req));
       if (this.dashboardController) {
         await this.dashboardController.showDashboard(res, browserSession);

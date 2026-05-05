@@ -45,19 +45,68 @@
     <% } %>
   </section>
 
-  <!-- Past Events -->
-  <section>
-    <h2 class="text-xl font-semibold mb-3">Past Events</h2>
+  <!-- Past Events (Archive) -->
+<section x-data="{ activeCategory: '', showAttendeesFor: null }">
+  <h2 class="text-xl font-semibold mb-3">Past Events</h2>
 
-    <% (grouped.past || []).forEach(event => { %>
-      <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
-        <%- include("./_event-row", { event, session }) %>
-      </div>
+  <!-- Category filter — client-side via Alpine -->
+  <div class="mb-4 flex gap-2 flex-wrap">
+    <button
+      @click="activeCategory = ''"
+      :class="activeCategory === '' ? 'bg-slate-800 text-white' : 'bg-white text-slate-700'"
+      class="px-3 py-1 rounded border text-sm">
+      All
+    </button>
+    <% ['academic','social','sports','arts','tech','other'].forEach(cat => { %>
+      <button
+        @click="activeCategory = '<%= cat %>'"
+        :class="activeCategory === '<%= cat %>' ? 'bg-slate-800 text-white' : 'bg-white text-slate-700'"
+        class="px-3 py-1 rounded border text-sm capitalize">
+        <%= cat %>
+      </button>
     <% }) %>
+  </div>
 
-    <% if ((grouped.past || []).length === 0) { %>
-      <p class="text-slate-500">No past events.</p>
-    <% } %>
-  </section>
+  <!-- Event list filtered by Alpine -->
+  <% (grouped.past || []).forEach(event => { %>
+    <div
+      x-show="activeCategory === '' || activeCategory === '<%= event.category ?? 'other' %>'"
+      class="border rounded-lg p-4 mb-3 bg-gray-50 opacity-80">
+      <div class="flex justify-between items-start">
+        <div>
+          <strong class="text-slate-800"><%= event.title %></strong>
+          <p class="text-sm text-slate-500 capitalize">
+            <%= event.category ?? 'other' %> •
+            Ended <%= event.date ? new Date(event.date).toLocaleDateString() : '' %>
+          </p>
+        </div>
+        <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 capitalize">
+          <%= event.status %>
+        </span>
+      </div>
+
+      <!-- Attendees toggle -->
+      <button
+        @click="showAttendeesFor = showAttendeesFor === '<%= event.id %>' ? null : '<%= event.id %>'"
+        class="mt-2 text-xs text-blue-600 hover:underline bg-transparent border-0 p-0 cursor-pointer">
+        <span x-text="showAttendeesFor === '<%= event.id %>' ? 'Hide Attendees' : 'View Attendees'"></span>
+      </button>
+
+      <!-- Attendees loaded via HTMX when revealed -->
+      <div
+        x-show="showAttendeesFor === '<%= event.id %>'"
+        x-transition
+        hx-get="/events/<%= event.id %>/attendees"
+        hx-trigger="intersect once"
+        hx-swap="innerHTML"
+        class="mt-2">
+      </div>
+    </div>
+  <% }) %>
+
+  <% if ((grouped.past || []).length === 0) { %>
+    <p class="text-slate-500">No past events.</p>
+  <% } %>
+</section>
 
 </div>
