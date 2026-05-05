@@ -1,9 +1,7 @@
-<%- include("../partials/header") %>
+<div class="p-6">
+  <h1 class="text-3xl font-bold mb-4">Event Dashboard</h1>
 
-<div class="dashboard-container">
-  <h1>Event Dashboard</h1>
-
-  <%- include("./_dashboard", { grouped, session }) %>
+  <%- include("./_dashboard", { grouped: grouped || {}, session }) %>
 </div>
 
 <%- include("../partials/footer") %>
