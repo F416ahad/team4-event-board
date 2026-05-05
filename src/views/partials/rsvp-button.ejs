@@ -3,17 +3,27 @@
   Rendered by RsvpController after toggling (HTMX)
   Expects: eventId, userStatus, attendeeCount
 %>
-<div id="rsvp-status">
-  <button hx-post="/events/<%= eventId %>/rsvp"
-          hx-target="#rsvp-status"
-          hx-swap="outerHTML"
-          class="px-6 py-2.5 rounded-lg font-medium transition-colors
-                 <%= userStatus === 'going' ? 'bg-red-600 hover:bg-red-700' :
-                    userStatus === 'waitlisted' ? 'bg-yellow-600 hover:bg-yellow-700' :
-                    'bg-blue-600 hover:bg-blue-700' %>">
-    <% if (userStatus === 'going') { %>Cancel RSVP<% 
-       } else if (userStatus === 'waitlisted') { %>Waitlisted<% 
-       } else { %>RSVP<% } %>
-  </button>
-  <p class="text-sm text-slate-500 mt-2">Attendees going: <span><%= attendeeCount %></span></p>
+<div id="rsvp-status"
+     class="rounded-xl border border-slate-200 bg-slate-50 p-4"
+     x-data="{ visible: false }"
+     x-init="requestAnimationFrame(() => { visible = true; })">
+  <div x-show="visible" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <button hx-post="/events/<%= eventId %>/rsvp"
+              hx-target="#rsvp-status"
+              hx-swap="outerHTML"
+              class="inline-flex items-center justify-center px-6 py-2.5 rounded-lg font-semibold text-white transition-all duration-200 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500
+                    <%= userStatus === 'going' ? 'bg-red-600 hover:bg-red-700' :
+                       userStatus === 'waitlisted' ? 'bg-amber-600 hover:bg-amber-700' :
+                       'bg-blue-600 hover:bg-blue-700' %>">
+        <% if (userStatus === 'going') { %>Cancel RSVP<%
+           } else if (userStatus === 'waitlisted') { %>Leave waitlist<%
+           } else { %>RSVP Now<% } %>
+      </button>
+      <span class="text-xs font-medium uppercase tracking-wide <%= userStatus === 'going' ? 'text-emerald-700' : userStatus === 'waitlisted' ? 'text-amber-700' : 'text-slate-500' %>">
+        <%= userStatus === 'going' ? 'You are going' : userStatus === 'waitlisted' ? 'You are waitlisted' : 'Not attending yet' %>
+      </span>
+    </div>
+    <p class="mt-2 text-sm text-slate-600">Attendees going: <span class="font-semibold text-slate-900"><%= attendeeCount %></span></p>
+  </div>
 </div>
