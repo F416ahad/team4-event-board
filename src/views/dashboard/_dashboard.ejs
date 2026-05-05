@@ -1,11 +1,5 @@
-<!-- ACTIVE EVENTS -->
-<section class="event-group">
+<section>
   <h2>Active Events</h2>
-
-  <% if (grouped.active.length === 0) { %>
-    <p>No active events.</p>
-  <% } %>
-
   <% grouped.active.forEach(event => { %>
     <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
       <%- include("./_event-row", { event, session }) %>
@@ -13,14 +7,8 @@
   <% }) %>
 </section>
 
-<!-- CANCELLED EVENTS -->
-<section class="event-group">
+<section>
   <h2>Cancelled Events</h2>
-
-  <% if (grouped.cancelled.length === 0) { %>
-    <p>No cancelled events.</p>
-  <% } %>
-
   <% grouped.cancelled.forEach(event => { %>
     <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
       <%- include("./_event-row", { event, session }) %>
@@ -28,14 +16,8 @@
   <% }) %>
 </section>
 
-<!-- PAST EVENTS -->
-<section class="event-group">
+<section>
   <h2>Past Events</h2>
-
-  <% if (grouped.past.length === 0) { %>
-    <p>No past events.</p>
-  <% } %>
-
   <% grouped.past.forEach(event => { %>
     <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
       <%- include("./_event-row", { event, session }) %>

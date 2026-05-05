@@ -9,7 +9,6 @@
     <p>Organizer: <%= event.organizerName ?? "Unknown" %></p>
   <% } %>
 
-  <!-- Action buttons -->
   <% if (event.status === "active") { %>
     <form
       hx-post="/dashboard/events/<%= event.id %>/cancel"
@@ -29,6 +28,4 @@
       <button class="btn-publish">Reactivate</button>
     </form>
   <% } %>
-
-  <!-- Past events have no actions -->
 </div>

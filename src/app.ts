@@ -479,6 +479,7 @@ class ExpressApp implements IApp {
       if(!user)
       {res.status(401).send("Unauthorized"); 
         return;}
+      const eventId = this.getParam(req.params.eventId);
       await this.rsvpController?.getUserRsvpStatus(res, eventId, user.userId);
     }));
 
