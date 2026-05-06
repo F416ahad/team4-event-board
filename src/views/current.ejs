@@ -1,108 +1,106 @@
 <%- include("../partials/header") %>
 
-<div class="event-container">
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
 
-  <!-- EVENT HEADER -->
-  <div class="event-header">
-    <h1><%= event.title %></h1>
-
-    <p>
-      <strong>Date:</strong>
-      <%= new Date(event.date).toLocaleString() %>
-    </p>
-
-    <p>
-      <strong>Category:</strong>
-      <%= event.category %>
-    </p>
-
-    <p>
-      <strong>Capacity:</strong>
-      <%= event.capacity %>
-    </p>
-  </div>
-
-  <hr />
-
-  <!-- USER RSVP STATUS -->
-  <div class="user-status">
-    <h2>Your RSVP Status</h2>
-
-    <% if (!currentUserRsvp) { %>
-      <p>You have not RSVP’d for this event.</p>
-    <% } else { %>
-
-      <% if (currentUserRsvp.status === "ATTENDING") { %>
-        <p class="badge badge-green">You are attending this event</p>
-      <% } %>
-
-      <% if (currentUserRsvp.status === "WAITLISTED") { %>
-        <p class="badge badge-yellow">
-          You are waitlisted — Position:
-          <%= currentUserRsvp.waitlistPosition %>
-        </p>
-      <% } %>
-
-      <% if (currentUserRsvp.status === "CANCELLED") { %>
-        <p class="badge badge-gray">You are not registered</p>
-      <% } %>
-
-      <!-- CANCEL BUTTON -->
-      <% if (currentUserRsvp.status !== "CANCELLED") { %>
-        <form
-          method="POST"
-          action="/events/<%= event.id %>/rsvp/cancel"
-        >
-          <button type="submit" class="btn btn-danger">
-            Cancel RSVP
-          </button>
-        </form>
-      <% } %>
-
-    <% } %>
-  </div>
-
-  <hr />
-
-  <!-- RSVP LIST -->
-  <div class="rsvp-list">
-    <h2>Attendees & Waitlist</h2>
-
-    <% if (!event.rsvps || event.rsvps.length === 0) { %>
-      <p>No RSVPs yet.</p>
-    <% } %>
-
-    <% event.rsvps.forEach(rsvp => { %>
-
-      <div class="rsvp-card">
-
-        <!-- MEMBER NAME -->
-        <p class="member-name">
-          <%= rsvp.member.displayName %>
-        </p>
-
-        <!-- STATUS BADGE -->
-        <% if (rsvp.status === "ATTENDING") { %>
-          <span class="badge badge-green">Attending</span>
-        <% } %>
-
-        <% if (rsvp.status === "WAITLISTED") { %>
-          <span class="badge badge-yellow">Waitlisted</span>
-
-          <p class="position">
-            Position:
-            <%= rsvp.waitlistPosition %>
-          </p>
-        <% } %>
-
-        <% if (rsvp.status === "CANCELLED") { %>
-          <span class="badge badge-gray">Cancelled</span>
-        <% } %>
-
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="p-6 sm:p-8 flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+      
+      <div class="space-y-4">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight"><%= event.title %></h1>
+        
+        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+          <span class="flex items-center gap-1">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <%= new Date(event.date).toLocaleString() %>
+          </span>
+          <span class="flex items-center gap-1">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+            <%= event.category %>
+          </span>
+          <span class="flex items-center gap-1">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            Capacity: <%= event.capacity %>
+          </span>
+        </div>
       </div>
 
-    <% }) %>
+      <div class="flex-shrink-0">
+        <% if (typeof isSaved !== 'undefined' && isSaved) { %>
+          <button hx-post="/events/<%= event.id %>/save" hx-swap="outerHTML" class="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 hover:text-blue-800 transition-all shadow-sm">
+            <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"></path></svg>
+            Saved
+          </button>
+        <% } else { %>
+          <button hx-post="/events/<%= event.id %>/save" hx-swap="outerHTML" class="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:text-blue-600 transition-all shadow-sm">
+            <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
+            Save for Later
+          </button>
+        <% } %>
+      </div>
+      
+    </div>
+  </div>
 
+  <div class="bg-gray-50 rounded-2xl border border-gray-200 p-6 sm:p-8">
+    <h2 class="text-xl font-bold text-gray-900 mb-4">Your RSVP Status</h2>
+
+    <% if (!currentUserRsvp) { %>
+      <p class="text-gray-600">You have not RSVP’d for this event.</p>
+    <% } else { %>
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        
+        <% if (currentUserRsvp.status === "ATTENDING") { %>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+            ✓ You are attending
+          </span>
+        <% } else if (currentUserRsvp.status === "WAITLISTED") { %>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+            ⌛ Waitlisted (Position: <%= currentUserRsvp.waitlistPosition %>)
+          </span>
+        <% } else if (currentUserRsvp.status === "CANCELLED") { %>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-200 text-gray-800">
+            ✕ Cancelled
+          </span>
+        <% } %>
+
+        <% if (currentUserRsvp.status !== "CANCELLED") { %>
+          <form method="POST" action="/events/<%= event.id %>/rsvp/cancel">
+            <button type="submit" class="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm">
+              Cancel RSVP
+            </button>
+          </form>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+
+  <div>
+    <h2 class="text-xl font-bold text-gray-900 mb-6">Attendees & Waitlist</h2>
+
+    <% if (!event.rsvps || event.rsvps.length === 0) { %>
+      <div class="text-center py-12 bg-white rounded-2xl border border-gray-200 border-dashed">
+        <p class="text-gray-500">No RSVPs yet. Be the first to join!</p>
+      </div>
+    <% } else { %>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <% event.rsvps.forEach(rsvp => { %>
+          <div class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+            <p class="font-medium text-gray-900 truncate pr-4"><%= rsvp.member.displayName %></p>
+            
+            <% if (rsvp.status === "ATTENDING") { %>
+              <span class="flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Attending</span>
+            <% } else if (rsvp.status === "WAITLISTED") { %>
+              <div class="flex-shrink-0 flex flex-col items-end">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Waitlisted</span>
+                <span class="text-xs text-gray-500 mt-1">Pos: <%= rsvp.waitlistPosition %></span>
+              </div>
+            <% } else if (rsvp.status === "CANCELLED") { %>
+              <span class="flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Cancelled</span>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
   </div>
 
 </div>

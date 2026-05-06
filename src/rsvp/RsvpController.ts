@@ -4,6 +4,7 @@ import type { ILoggingService } from "../service/LoggingService";
 import type { IAppBrowserSession } from "../session/AppSession";
 import type { UserRole } from "../auth/User";
 import { Result } from "../lib/result";
+import { SavedEventService } from "../savedEvents/SavedEventService"; // <-- IMPORT ADDED HERE
 
 import {
   EventNotFoundError,
@@ -199,11 +200,22 @@ class RsvpController implements IRsvpController {
     const countResult = await this.service.countGoing(eventId);
     const attendeeCount = countResult.ok ? countResult.value : 0;
 
+    // --- FEATURE 14: SAVE FOR LATER LOGIC ADDED HERE ---
+    let isSaved = false;
+    if (currentUserId) {
+      const savedEventsResult = await SavedEventService.getSavedEventsForUser(currentUserId);
+      if (savedEventsResult.ok) {
+        isSaved = savedEventsResult.value.includes(eventId);
+      }
+    }
+    // ---------------------------------------------------
+
     res.render("events/show", {
       session,
       event,
       userRsvp,
       attendeeCount,
+      isSaved, // <-- PASSED TO TEMPLATE HERE
       error: null,
     });
   }

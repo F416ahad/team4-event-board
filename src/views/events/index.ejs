@@ -1,7 +1,8 @@
+<%- include("../partials/header") %>
+
 <%# 
   Events list page.
   Shows all events with links to view details.
-  Uses Tailwind CSS classes matching the auth templates.
 %>
 
 <section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
@@ -9,6 +10,42 @@
   <p class="text-slate-500">
     Browse events and click "View Details" to RSVP or leave comments.
   </p>
+</section>
+
+<%# FEATURE 10: Search Bar with Alpine.js & HTMX %>
+<section class="mb-4" x-data="{ searchQuery: '' }">
+  <div class="relative group w-full">
+    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+      <svg class="h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+      </svg>
+    </div>
+
+    <input 
+      type="text" 
+      name="query" 
+      x-ref="searchInput"
+      x-model="searchQuery"
+      hx-get="/events/search" 
+      hx-target="#event-list-container" 
+      hx-trigger="input changed delay:500ms, search"
+      class="block w-full pl-11 pr-12 py-3.5 bg-white border border-slate-300 rounded-xl shadow-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-base sm:text-lg"
+      placeholder="Search events by title, description, or location..."
+    >
+
+    <button 
+      type="button" 
+      x-show="searchQuery.length > 0"
+      x-transition.opacity
+      x-on:click="searchQuery = ''; $nextTick(() => { $refs.searchInput.dispatchEvent(new Event('input', {bubbles: true})) })"
+      class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none"
+      style="display: none;" 
+    >
+      <svg class="h-6 w-6 bg-slate-100 rounded-full p-1 hover:bg-slate-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
 </section>
 
 <%# Feature 6: Filter Bar with HTMX %>
@@ -59,3 +96,5 @@
 <div id="event-list-container">
   <%- include("../partials/event-list") %>
 </div>
+
+<%- include("../partials/footer") %>
