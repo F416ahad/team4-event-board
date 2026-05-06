@@ -118,5 +118,13 @@
         </footer>
     </article>
 </main>
-
+<div class="flex flex-col sm:flex-row gap-3 w-full">
+    <a href="/events/<%= event.id %>/edit" 
+       class="w-full sm:w-auto text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg">
+       Edit Event
+    </a>
+    <button class="w-full sm:w-auto bg-white hover:bg-red-50 text-red-600 border border-red-200 font-bold py-3 px-8 rounded-xl transition-colors">
+       Cancel Event
+    </button>
+</div>
 <%- include('../partials/footer') %>
