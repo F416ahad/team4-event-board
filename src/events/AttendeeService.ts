@@ -52,7 +52,7 @@ class AttendeeService implements IAttendeeService {
       return Err({ name: 'NotFound' as const, message: 'Event not found.' })
     }
 
-    const isOrganizer = event.organizerId === requesterId
+    const isOrganizer = event.createdByUserId === requesterId
     const isAdmin = requesterRole === 'admin'
 
     if (!isOrganizer && !isAdmin) {

@@ -7,11 +7,9 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
   return {
     id: Math.random().toString(36).slice(2),
     title: 'Test Event',
-    description: 'desc',
-    location: 'Room 1',
     category: 'academic',
-    organizerId: 'org-1',
-    startTime: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+    createdByUserId: 'org-1',
+    date: new Date(now.getTime() - 2 * 60 * 60 * 1000),
     endTime: new Date(now.getTime() - 1 * 60 * 60 * 1000),
     capacity: 50,
     status: 'active',
@@ -44,7 +42,7 @@ describe('ArchiveService', () => {
 
     it('does not transition events that have not yet ended', async () => {
       const future = makeEvent({
-        startTime: new Date(Date.now() + 1 * 60 * 60 * 1000),
+        date: new Date(Date.now() + 1 * 60 * 60 * 1000),
         endTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
       })
       repo.seed([future])
@@ -70,7 +68,7 @@ describe('ArchiveService', () => {
       const expired2 = makeEvent({ id: 'e2' })
       const future = makeEvent({
         id: 'f1',
-        startTime: new Date(Date.now() + 60_000),
+        date: new Date(Date.now() + 60_000),
         endTime: new Date(Date.now() + 120_000),
       })
       const alreadyPast = makeEvent({ id: 'p1', status: 'past' })

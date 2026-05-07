@@ -1,6 +1,7 @@
-import type { IEventRepository } from './EventRepository'
-import type { Event, CreateEventInput, EventCategory } from './Event'
-import type { PrismaClient } from '@prisma/client'
+import type { IEventRepository } from "./EventRepository"
+import type { Event, CreateEventInput, EventCategory, EventStatus } from "./Event"
+import { coerceCategory } from "./Event"
+import type { PrismaClient } from "@prisma/client"
 
 export class PrismaEventRepository implements IEventRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -13,21 +14,19 @@ export class PrismaEventRepository implements IEventRepository {
 
   async findActive(): Promise<Event[]> {
     const rows = await this.prisma.event.findMany({
-      where: { status: 'active' },
-      orderBy: { date: 'asc' },
+      where: { status: "active" },
+      orderBy: { date: "asc" },
     })
-    return rows.map(this.toEvent)
+    return rows.map((r) => this.toEvent(r))
   }
 
   async findPast(category?: EventCategory): Promise<Event[]> {
     const rows = await this.prisma.event.findMany({
-      where: {
-        status: 'past',
-      },
-      orderBy: { endTime: 'desc' },
+      where: { status: "past" },
+      orderBy: [{ endTime: "desc" }, { date: "desc" }],
     })
-    const events = rows.map(this.toEvent)
-    if (category) return events.filter(e => e.category === category)
+    const events = rows.map((r) => this.toEvent(r))
+    if (category) return events.filter((e) => e.category === category)
     return events
   }
 
@@ -35,11 +34,12 @@ export class PrismaEventRepository implements IEventRepository {
     const row = await this.prisma.event.create({
       data: {
         title: input.title,
-        status: 'active',
-        date: input.startTime,
-        endTime: input.endTime,
-        capacity: input.capacity,
-        createdByUserId: input.organizerId,
+        status: "active",
+        date: input.date,
+        endTime: input.endTime ?? null,
+        capacity: input.capacity ?? null,
+        category: input.category ?? "other",
+        createdByUserId: input.createdByUserId,
       },
     })
     return this.toEvent(row)
@@ -47,29 +47,41 @@ export class PrismaEventRepository implements IEventRepository {
 
   async transitionExpired(): Promise<number> {
     const now = new Date()
+    // Auto-archive: any active event whose endTime has passed.
+    // Events without an endTime stay active until the organizer cancels them.
     const result = await this.prisma.event.updateMany({
       where: {
-        status: 'active',
+        status: "active",
         endTime: { lte: now },
       },
-      data: { status: 'past' },
+      data: { status: "past" },
     })
     return result.count
   }
 
-  private toEvent(row: any): Event {
+  private toEvent(row: {
+    id: string
+    title: string
+    capacity: number | null
+    status: string
+    date: Date
+    endTime: Date | null
+    category: string
+    createdByUserId: string
+    createdAt: Date
+    updatedAt?: Date
+  }): Event {
     return {
       id: row.id,
       title: row.title,
-      description: '',
-      location: '',
-      category: 'other' as EventCategory,
-      organizerId: row.createdByUserId,
-      startTime: row.date,
-      endTime: row.endTime ?? row.date,
-      capacity: row.capacity ?? 0,
-      status: row.status as 'active' | 'past',
+      capacity: row.capacity ?? null,
+      status: (row.status as EventStatus) ?? "active",
+      date: row.date,
+      endTime: row.endTime ?? null,
+      category: coerceCategory(row.category),
+      createdByUserId: row.createdByUserId,
       createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     }
   }
 }

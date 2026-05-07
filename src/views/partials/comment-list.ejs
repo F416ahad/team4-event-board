@@ -5,20 +5,35 @@
 %>
 
 <div id="comment-list-container">
+  <% function formatPostedTime(dateString) {
+    const postedAt = new Date(dateString);
+    return postedAt.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  } %>
   <%# Post comment form %>
   <form id="comment-form" 
-        class="mb-6"
+        class="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4"
+        x-data="{ count: 0, max: 500 }"
         hx-post="/events/<%= eventId %>/comments"
         hx-target="#comment-list-container"
         hx-swap="outerHTML"
         hx-vals='{"userId":"<%= currentUserId %>","displayName":"<%= session.authenticatedUser?.displayName || 'Anonymous' %>"}'>
     <div class="mb-3">
       <textarea name="content" rows="3" placeholder="Write a comment... (max 500 chars)" maxlength="500" required
+                x-on:input="count = $event.target.value.length"
                 class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"></textarea>
-      <p class="text-xs text-slate-400 mt-1">Max 500 characters</p>
+      <p class="mt-1 flex items-center justify-between text-xs">
+        <span class="text-slate-500">Keep it clear and respectful.</span>
+        <span class="font-medium" :class="count > max * 0.9 ? 'text-amber-600' : 'text-slate-500'"><span x-text="count"></span> / <span x-text="max"></span></span>
+      </p>
     </div>
     <button type="submit" 
-            class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
+            class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors">
       Post Comment
     </button>
   </form>
@@ -27,16 +42,20 @@
   <div class="space-y-4">
     <% if (comments && comments.length) { %>
       <% comments.forEach(comment => { %>
-        <div class="p-4 border border-slate-200 rounded-xl bg-slate-50" id="comment-<%= comment.id %>">
+        <div class="p-4 border border-slate-200 rounded-xl bg-slate-50"
+             id="comment-<%= comment.id %>"
+             x-data="{ visible: false }"
+             x-init="requestAnimationFrame(() => { visible = true; })">
+          <div x-show="visible" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
           <div class="flex justify-between items-start mb-2">
             <div>
               <strong class="text-slate-900"><%= comment.displayName %></strong>
-              <span class="text-xs text-slate-400 ml-2">
-                <%= new Date(comment.createdAt).toLocaleString() %>
+              <span class="text-xs text-slate-400 ml-2" title="<%= formatPostedTime(comment.createdAt) %>">
+                <%= formatPostedTime(comment.createdAt) %>
               </span>
             </div>
             <% if (comment.canDelete) { %>
-              <button class="delete-comment px-3 py-1 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700"
+              <button class="delete-comment px-3 py-1 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700 transition-colors"
                       hx-delete="/events/<%= eventId %>/comments/<%= comment.id %>"
                       hx-target="#comment-list-container"
                       hx-swap="outerHTML"
@@ -46,6 +65,7 @@
             <% } %>
           </div>
           <p class="text-slate-700 whitespace-pre-wrap"><%= comment.content %></p>
+          </div>
         </div>
       <% }); %>
     <% } else { %>

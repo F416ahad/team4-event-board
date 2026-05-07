@@ -1,8 +1,8 @@
 import { Ok, Err, type Result } from "../lib/result";
-import type { RSVPRepository } from "./RsvpRepository";
-import type { RSVPStatus, Event, RSVP } from "./rsvp.ts";
+import type { CreateEventFields, RSVPRepository, UpdateEventFields } from "./RsvpRepository";
+import type { RSVPStatus, Event, RSVP, EventCategory } from "./rsvp";
 import type { UserRole } from "../auth/User";
-// import custom errors
+
 import {
   EventNotFoundError,
   EventCancelledError,
@@ -16,132 +16,107 @@ import {
 export class RsvpService {
   constructor(private readonly repo: RSVPRepository) {}
 
-  // creates a new RSVP if none exists
-  // cancels if already going
-  // reactivates if previously cancelled
-  // HIGHLIGHT
+  /**
+   * FEATURE 9 — Waitlist Promotion
+   * toggleRSVP returns:
+   * { cancelled: RSVP | null, promoted: RSVP | null }
+   */
   async toggleRSVP(
     eventId: string,
     userId: string
-  ): Promise<Result<void, Error>> {
+  ): Promise<Result<{ cancelled: RSVP | null; promoted: RSVP | null }, Error>> {
     try {
-      // Get event from repository
+      // 1. Load event
       const eventResult = await this.repo.getEvent(eventId);
-
-      if(!eventResult.ok)
-      {
-        return Err(eventResult.value as Error); // handle repository error
-      }
+      if (!eventResult.ok) return Err(eventResult.value as Error);
 
       const event = eventResult.value;
+      if (!event) return Err(new EventNotFoundError());
+      if (event.status === "cancelled") return Err(new EventCancelledError());
+      if (event.status === "past") return Err(new EventPastError());
 
-      if(!event) return Err(new EventNotFoundError()); // check if event exists
-
-      // reject if event is cancelled
-      if(event.status === "cancelled") 
-      {
-        return Err(new EventCancelledError());
-    
-      }
-
-      // reject if event date is strictly before today (date only)
-      const eventDate = new Date(event.date);
-      const today = new Date();
-
-      // compare only the date part (YYYY-MM-DD) to ignore time of day
-      // reject if event date is in the past
-      // 2026-04-16T22:07:52.000Z to 2026-04-16 (10 is exclusive)
-      if(eventDate.toISOString().slice(0,10) < today.toISOString().slice(0,10)) 
-      {
+      // Auto-archive transition runs every 60s; until then, fall back to
+      // explicit time checks so toggleRSVP can't accept ended events.
+      const eventEnd = event.endTime
+        ? event.endTime instanceof Date
+          ? event.endTime
+          : new Date(event.endTime)
+        : null;
+      if (eventEnd && eventEnd.getTime() < Date.now()) {
         return Err(new EventPastError());
       }
 
-      // Get rsvp for user
-      const rsvpResult = await this.repo.getRSVP(eventId, userId);
-
-      if(!rsvpResult.ok) 
-      {
-        return Err(rsvpResult.value as Error); // handle repo error
+      // If no endTime is set, fall back to a same-day comparison
+      // (matches the original behaviour: same-day events are still RSVP-able).
+      if (!eventEnd) {
+        const eventDate = event.date instanceof Date ? event.date : new Date(event.date);
+        const eventDay = eventDate.toISOString().slice(0, 10);
+        const today = new Date().toISOString().slice(0, 10);
+        if (eventDay < today) return Err(new EventPastError());
       }
+
+      // 2. Load existing RSVP
+      const rsvpResult = await this.repo.getRSVP(eventId, userId);
+      if (!rsvpResult.ok) return Err(rsvpResult.value as Error);
 
       const existing = rsvpResult.value;
 
-      // case 1: if user has no rsvp yet, then create one
-      if(!existing) 
-      {
+      // 3. CASE 1 — No RSVP yet → create one
+      if (!existing) {
         const countResult = await this.repo.countGoing(eventId);
+        if (!countResult.ok) return Err(countResult.value as Error);
 
-        if(!countResult.ok) 
-        { // countResult.value is error because ok === false
-          return Err(countResult.value as Error); // handle count failure
-        }
+        const status: RSVPStatus =
+          countResult.value >= (event.capacity ?? Infinity)
+            ? "waitlisted"
+            : "going";
 
-
-        let status: RSVPStatus; // create mutable variable
-
-        // check rsvp status based on event capacity
-        if(countResult.value >= (event.capacity ?? Infinity))  // if event capacity is null, use infinity
-        {
-            status = "waitlisted"; // event full
-        } 
-        else 
-        {
-            status = "going"; // space available
-        }
-
-        // add a new rsvp
         const addResult = await this.repo.addRSVP(eventId, userId, status);
+        if (!addResult.ok) return Err(addResult.value as Error);
 
-        if(!addResult.ok) 
-        {
-          return Err(addResult.value as Error); // handle repo error
-        }
-
-        return Ok(undefined);
+        return Ok({ cancelled: null, promoted: null });
       }
 
-      // HIGHLIGHT THIS
-      // case 2/3: check if user already has rsvp and toggle status
-      let newStatus: RSVPStatus;
+      // 4. CASE 2 — User is going → cancel + promote next waitlisted
+      if (existing.status === "going") {
+        const cancelResult = await this.repo.updateRSVP(eventId, userId, "cancelled");
+        if (!cancelResult.ok) return Err(cancelResult.value as Error);
 
-        if(existing.status === "going") 
-        { // case 2: user is currently going, cancel their rsvp
-            newStatus = "cancelled";
-        } 
-        else 
-        { // case 3: user is currently "waitlisted" or "cancelled", try to become "going"
-          // must re-check event capacity because availability may have changed
-          const countResult = await this.repo.countGoing(eventId);
+        const cancelled = cancelResult.value;
 
-        if(!countResult.ok) 
-        {
-          return Err(countResult.value as Error);
+        // Find next waitlisted
+        const nextResult = await this.repo.getNextWaitlisted(eventId);
+        if (!nextResult.ok) return Err(nextResult.value as Error);
+
+        const next = nextResult.value;
+        if (!next) {
+          return Ok({ cancelled, promoted: null });
         }
-        
-        if(countResult.value >= (event.capacity ?? Infinity)) // check if event is full, current going count >= capacity (or infinite if no limit)
-        { // still full = remain waitlisted
-            newStatus = "waitlisted";
-        } 
-        else 
-        {
-          // space available = become going
-          newStatus = "going";
-        }
-      }
-      // update rsvp in repo
-      const updateResult = await this.repo.addRSVP(eventId, userId, newStatus);
 
-      if(!updateResult.ok) 
-      {
-        return Err(updateResult.value as Error); // handle update failure
+        // Promote them
+        const promoteResult = await this.repo.updateRSVP(eventId, next.userId, "going");
+        if (!promoteResult.ok) return Err(promoteResult.value as Error);
+
+        const promoted = promoteResult.value;
+
+        return Ok({ cancelled, promoted });
       }
 
-      return Ok(undefined);
+      // 5. CASE 3 — User is waitlisted or cancelled → try to become going
+      const countResult = await this.repo.countGoing(eventId);
+      if (!countResult.ok) return Err(countResult.value as Error);
 
-    } 
-    catch 
-    {
-      return Err(new RsvpToggleFailedError()); // catch unexpected errors
+      const newStatus: RSVPStatus =
+        countResult.value >= (event.capacity ?? Infinity)
+          ? "waitlisted"
+          : "going";
+
+      const updateResult = await this.repo.updateRSVP(eventId, userId, newStatus);
+      if (!updateResult.ok) return Err(updateResult.value as Error);
+
+      return Ok({ cancelled: null, promoted: null });
+    } catch {
+      return Err(new RsvpToggleFailedError());
     }
   }
 
@@ -150,33 +125,140 @@ export class RsvpService {
     return await this.repo.getEvents();
   }
 
+  /**
+   * Feature 6: filter active, upcoming events by category and timeframe.
+   * - category "all" / omitted → no category filter
+   * - timeframe "all-upcoming" / omitted → just upcoming, no narrowing
+   * - timeframe "this-week" → events whose start is between now and 7 days from now
+   * - timeframe "this-weekend" → events on Saturday or Sunday of this week
+   */
+  async getFilteredEvents(filters: {
+    category?: string;
+    timeframe?: string;
+  }): Promise<Result<Event[], Error>> {
+    const result = await this.repo.getEvents();
+    if (!result.ok) return result;
+
+    const now = new Date();
+    let events = result.value.filter((e) => e.status === "active");
+
+    // Always exclude past events.
+    events = events.filter((e) => {
+      const d = e.date instanceof Date ? e.date : new Date(e.date);
+      return d.getTime() >= now.getTime();
+    });
+
+    // Category filter.
+    if (filters.category && filters.category !== "all") {
+      events = events.filter(
+        (e) => (e.category ?? "other").toLowerCase() === filters.category!.toLowerCase()
+      );
+    }
+
+    // Timeframe filter.
+    if (filters.timeframe === "this-week") {
+      const weekEnd = new Date(now);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      events = events.filter((e) => {
+        const d = e.date instanceof Date ? e.date : new Date(e.date);
+        return d.getTime() >= now.getTime() && d.getTime() <= weekEnd.getTime();
+      });
+    } else if (filters.timeframe === "this-weekend") {
+      // Saturday 00:00 of this week → Monday 00:00 (exclusive)
+      const day = now.getDay(); // 0 = Sun … 6 = Sat
+      const daysUntilSaturday = (6 - day + 7) % 7;
+      const saturday = new Date(now);
+      saturday.setDate(saturday.getDate() + daysUntilSaturday);
+      saturday.setHours(0, 0, 0, 0);
+      const monday = new Date(saturday);
+      monday.setDate(saturday.getDate() + 2);
+      events = events.filter((e) => {
+        const d = e.date instanceof Date ? e.date : new Date(e.date);
+        return d.getTime() >= saturday.getTime() && d.getTime() < monday.getTime();
+      });
+    }
+
+    // Sort by start date ascending so the most imminent events come first.
+    events.sort((a, b) => {
+      const aT = (a.date instanceof Date ? a.date : new Date(a.date)).getTime();
+      const bT = (b.date instanceof Date ? b.date : new Date(b.date)).getTime();
+      return aT - bT;
+    });
+
+    return Ok(events);
+  }
+
   // get single event by id
   async getEvent(eventId: string): Promise<Result<Event | null, Error>> {
     return await this.repo.getEvent(eventId);
   }
-               
+
   // get a user's rsvp for an event
   async getUserRsvp(eventId: string, userId?: string): Promise<Result<RSVP | null, Error>> {
-    if(!userId) return Ok(null);
-    
+    if (!userId) return Ok(null);
     return await this.repo.getRSVP(eventId, userId);
   }
 
-  // create event (needs owner id)
+  /**
+   * Create a new event. The form supplies title + category + start date (and optionally
+   * end time and capacity). The creator user is upserted by the repo so RSVPs can FK
+   * back to a real user row.
+   */
   async createEvent(
-    title: string,
-    createdByUserId: string,
-    capacity?: number,
-    creator?: { email: string; displayName: string; role: UserRole },
+    input: {
+      title: string;
+      createdByUserId: string;
+      capacity?: number | null;
+      category?: EventCategory;
+      date?: Date;
+      endTime?: Date | null;
+      creator?: { email: string; displayName: string; role: UserRole };
+    },
   ): Promise<Result<Event, Error>> {
-    return await this.repo.createEvent(title, createdByUserId, capacity, creator);
+    const title = input.title.trim();
+    if (!title) return Err(new EventInvalidInputError("Event title is required"));
+
+    if (input.capacity != null && input.capacity < 1) {
+      return Err(new EventInvalidInputError("Capacity must be at least 1"));
+    }
+
+    if (input.date && Number.isNaN(input.date.getTime())) {
+      return Err(new EventInvalidInputError("Event start time is invalid"));
+    }
+
+    if (input.endTime && Number.isNaN(input.endTime.getTime())) {
+      return Err(new EventInvalidInputError("Event end time is invalid"));
+    }
+
+    if (input.date && input.endTime && input.endTime.getTime() <= input.date.getTime()) {
+      return Err(new EventInvalidInputError("End time must be after the start time"));
+    }
+
+    const fields: CreateEventFields = {
+      title,
+      createdByUserId: input.createdByUserId,
+      capacity: input.capacity ?? null,
+      category: input.category ?? "other",
+      date: input.date,
+      endTime: input.endTime ?? null,
+      creator: input.creator,
+    };
+
+    return await this.repo.createEvent(fields);
   }
 
   async editEvent(
     eventId: string,
     actorUserId: string,
     actorRole: UserRole,
-    updates: { title: string; capacity?: number; date: string; status: Event["status"] },
+    updates: {
+      title: string;
+      capacity?: number | null;
+      date: Date;
+      endTime?: Date | null;
+      category?: EventCategory;
+      status: Event["status"];
+    },
   ): Promise<Result<Event, Error>> {
     const eventResult = await this.repo.getEvent(eventId);
     if (!eventResult.ok) return Err(eventResult.value as Error);
@@ -188,53 +270,46 @@ export class RsvpService {
     const isOwner = event.createdByUserId === actorUserId;
     if (!isAdmin && !isOwner) return Err(new EventEditNotAuthorizedError());
 
-    const eventDate = new Date(event.date);
-    if (event.status === "cancelled" || eventDate.toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
-      return Err(new EventInvalidStateError());
-    }
+    if (event.status === "past") return Err(new EventInvalidStateError());
 
     const title = updates.title.trim();
     if (!title) return Err(new EventInvalidInputError("Event title is required"));
-    if (updates.capacity !== undefined && updates.capacity < 1) {
+    if (updates.capacity != null && updates.capacity < 1) {
       return Err(new EventInvalidInputError("Capacity must be at least 1"));
     }
-    if (Number.isNaN(new Date(updates.date).getTime())) {
+    if (Number.isNaN(updates.date.getTime())) {
       return Err(new EventInvalidInputError("Event date is invalid"));
     }
+    if (updates.endTime && Number.isNaN(updates.endTime.getTime())) {
+      return Err(new EventInvalidInputError("Event end time is invalid"));
+    }
+    if (updates.endTime && updates.endTime.getTime() <= updates.date.getTime()) {
+      return Err(new EventInvalidInputError("End time must be after the start time"));
+    }
 
-    const updateResult = await this.repo.updateEvent(eventId, {
+    const fields: UpdateEventFields = {
       title,
-      capacity: updates.capacity,
+      capacity: updates.capacity ?? null,
       date: updates.date,
+      endTime: updates.endTime ?? null,
+      category: updates.category,
       status: updates.status,
-    });
+    };
+
+    const updateResult = await this.repo.updateEvent(eventId, fields);
     if (!updateResult.ok) return Err(updateResult.value as Error);
     if (!updateResult.value) return Err(new EventNotFoundError());
     return Ok(updateResult.value);
   }
-// count how many "going" for an event
-  async countGoing(eventId: string): Promise<Result<number, Error>> 
-  {
+
+  async countGoing(eventId: string): Promise<Result<number, Error>> {
     return await this.repo.countGoing(eventId);
   }
 
-  // get event owner ID
   async getEventOwnerId(eventId: string): Promise<Result<string | null, Error>> {
     const result = await this.repo.getEvent(eventId);
+    if (!result.ok) return Err(result.value as Error);
 
-    if(!result.ok) return Err(result.value as Error);
-
-    let ownerId: string | null;
-
-    if(result.value && result.value.createdByUserId)
-    {
-      ownerId = result.value.createdByUserId;
-    } 
-    else 
-    {
-      ownerId = null;
-    }
-
-    return Ok(ownerId);
+    return Ok(result.value?.createdByUserId ?? null);
   }
 }

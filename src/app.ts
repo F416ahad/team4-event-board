@@ -22,6 +22,7 @@ import { ICommentController } from "./comment/CommentController";
 import { IDashboardController } from "./event_dash/EventController";
 import { EventSearchController } from "./events/EventSearchController";
 import { SavedEventController } from "./savedEvents/SavedEventController";
+import { isEventCategory } from "./events/Event";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -139,7 +140,7 @@ class ExpressApp implements IApp {
       asyncHandler(async (req, res) => {
         this.logger.info("GET /");
         const store = sessionStore(req);
-        res.redirect(isAuthenticatedSession(store) ? "/home" : "/login");
+        res.redirect(isAuthenticatedSession(store) ? "/dashboard" : "/login");
       }),
     );
 
@@ -150,7 +151,7 @@ class ExpressApp implements IApp {
         const browserSession = recordPageView(store);
 
         if (getAuthenticatedUser(store)) {
-          res.redirect("/home");
+          res.redirect("/dashboard");
           return;
         }
 
@@ -241,38 +242,30 @@ class ExpressApp implements IApp {
       }),
     );
 
-    // ── Authenticated home page ──────────────────────────────────────
-    // TODO: Replace this placeholder with your project's main page.
-
-    this.app.get(
-      "/home",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const browserSession = recordPageView(sessionStore(req));
-        this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null, dashboard: null });
-      }),
-    );
-
     // list all events (authenticated users)
     this.app.get(
       "/events",
       asyncHandler(async (req, res) => {
-        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+        if (!this.requireAuthenticated(req, res)) return;
 
-        const store = sessionStore(req); // get session store from request
-        const browserSession = recordPageView(store); // record page view for session tracking
-        const user = getAuthenticatedUser(store); // get current authenticated user
+        const store = sessionStore(req);
+        const browserSession = recordPageView(store);
+        const user = getAuthenticatedUser(store);
 
         if (!this.rsvpController) {
           res.status(500).send("RSVP controller unavailable");
           return;
         }
 
-        await this.rsvpController.showEvents(res, browserSession, user?.userId); // get and return events
+        const category = typeof req.query.category === "string" ? req.query.category : undefined;
+        const timeframe = typeof req.query.timeframe === "string" ? req.query.timeframe : undefined;
+
+        await this.rsvpController.showEvents(
+          res,
+          browserSession,
+          user?.userId,
+          { category, timeframe },
+        );
       }),
     );
 
@@ -286,9 +279,20 @@ class ExpressApp implements IApp {
         }
         const store = sessionStore(req);
         const browserSession = recordPageView(store);
-        res.render("events/new", { session: browserSession, error: null });
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
+        await this.rsvpController.showCreateEventForm(res, browserSession);
       })
     );
+
+    // ── Search ────────────────────────────────────────────────────────
+    // CRITICAL FIX: Moved this ABOVE the /events/:eventId wildcard!
+    this.app.get("/events/search", asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) return;
+      await EventSearchController.handleSearch(req, res);
+    }));
 
     // HIGHLIGHT
     // Show single event detail with rsvp button
@@ -315,22 +319,28 @@ class ExpressApp implements IApp {
     this.app.post(
       "/events",
       asyncHandler(async (req, res) => {
-        if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can create events.")) 
-        {
-          return; // make sure user has required role
+        if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can create events.")) {
+          return;
         }
 
-        const title = typeof req.body.title === "string" ? req.body.title.trim() : ""; // validate and trim title
-        const capacity = req.body.capacity ? parseInt(req.body.capacity, 10) : undefined; // get capacity if provided
+        const title = typeof req.body.title === "string" ? req.body.title.trim() : "";
+        const capacityRaw = typeof req.body.capacity === "string" ? req.body.capacity.trim() : "";
+        const capacity = capacityRaw === "" ? null : Number.parseInt(capacityRaw, 10);
 
-        const store = sessionStore(req); // get session store
-        const browserSession = touchAppSession(store); // update session activity
+        const dateRaw = typeof req.body.date === "string" ? req.body.date : "";
+        const date = dateRaw ? new Date(dateRaw) : undefined;
 
-        // get user from session
+        const endTimeRaw = typeof req.body.endTime === "string" ? req.body.endTime : "";
+        const endTime = endTimeRaw ? new Date(endTimeRaw) : null;
+
+        const categoryRaw = typeof req.body.category === "string" ? req.body.category : "other";
+        const category = isEventCategory(categoryRaw) ? categoryRaw : "other";
+
+        const store = sessionStore(req);
+        const browserSession = touchAppSession(store);
         const user = getAuthenticatedUser(store);
 
-        if(!user)
-        {
+        if (!user) {
           res.status(401).send("Unauthorized");
           return;
         }
@@ -342,12 +352,11 @@ class ExpressApp implements IApp {
 
         await this.rsvpController.createEvent(
           res,
-          title,
-          capacity,
+          { title, capacity, category, date, endTime },
           browserSession,
           user.userId,
           { email: user.email, displayName: user.displayName, role: user.role },
-        ); // create event
+        );
       }),
     );
 
@@ -394,12 +403,18 @@ class ExpressApp implements IApp {
 
         const eventId = this.getParam(req.params.eventId);
         const rawCapacity = typeof req.body.capacity === "string" ? req.body.capacity.trim() : "";
-        const capacity = rawCapacity === "" ? undefined : Number.parseInt(rawCapacity, 10);
+        const capacity = rawCapacity === "" ? null : Number.parseInt(rawCapacity, 10);
         const status = req.body.status === "cancelled" ? "cancelled" : "active";
         const title = typeof req.body.title === "string" ? req.body.title : "";
+
         const dateInput = typeof req.body.date === "string" ? req.body.date : "";
-        const parsedDate = dateInput ? new Date(dateInput) : null;
-        const date = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : "";
+        const date = dateInput ? new Date(dateInput) : new Date(NaN);
+
+        const endTimeInput = typeof req.body.endTime === "string" ? req.body.endTime : "";
+        const endTime = endTimeInput ? new Date(endTimeInput) : null;
+
+        const categoryRaw = typeof req.body.category === "string" ? req.body.category : "other";
+        const category = isEventCategory(categoryRaw) ? categoryRaw : "other";
 
         if (!this.rsvpController) {
           res.status(500).send("RSVP controller unavailable");
@@ -412,7 +427,7 @@ class ExpressApp implements IApp {
           browserSession,
           user.userId,
           user.role,
-          { title, capacity, date, status },
+          { title, capacity, date, endTime, category, status },
         );
       }),
     );
@@ -469,6 +484,19 @@ class ExpressApp implements IApp {
         );
       }),
     );
+    //get the waitlist position for current user 
+    this.app.get("/events/:eventId/waitlist/position", asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) return;
+
+      const store = sessionStore(req);
+      const user = getAuthenticatedUser(store);
+
+      if(!user)
+      {res.status(401).send("Unauthorized"); 
+        return;}
+      const eventId = this.getParam(req.params.eventId);
+      await this.rsvpController?.getUserRsvpStatus(res, eventId, user.userId);
+    }));
 
     this.app.post("/admin/users/:id/delete", asyncHandler(async (req, res) => {
       if (!this.requireRole(req, res, ["admin"], "Only Admin can manage users.")) return;
@@ -489,30 +517,69 @@ class ExpressApp implements IApp {
       );
     }));
 
-    // ── Home ──────────────────────────────────────────────────────────
-
-    this.app.get("/home", asyncHandler(async (req, res) => {
+    // ── Feature 9: Waitlist Promotion ──────────────────────────────────────────────────────────
+    // Get RSVP status
+    this.app.get("/events/:eventId/rsvp/status", asyncHandler(async (req, res) => {
       if (!this.requireAuthenticated(req, res)) return;
-      const browserSession = recordPageView(sessionStore(req));
-      this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-      res.render("home", { session: browserSession, pageError: null, dashboard: null });
+      const store = sessionStore(req);  
+      const user = getAuthenticatedUser(store); 
+      
+      if (!user) {
+        res.status(401).send("Unauthorized");
+        return;
+      }
+      const eventId = this.getParam(req.params.eventId);
+      await this.rsvpController.getUserRsvpStatus(res, eventId, user.userId);
     }));
 
-    // ── Dashboard ─────────────────────────────────────────────────────
+    // Get attendee count (JSON)
+    this.app.get(
+      "/events/:eventId/rsvp/count",
+      asyncHandler(async (req, res) => {
+        const eventId = this.getParam(req.params.eventId);
+
+        if (!this.rsvpController) {
+          res.status(500).send("RSVP controller unavailable");
+          return;
+        }
+
+        await this.rsvpController.getAttendeeCount(res, eventId);
+      })
+    );
+
+    // ── Dashboard (the app's home page) ───────────────────────────────
 
     this.app.get("/dashboard", asyncHandler(async (req, res) => {
-      if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can view the dashboard.")) return;
+      if (!this.requireAuthenticated(req, res)) return;
       const browserSession = recordPageView(sessionStore(req));
       if (this.dashboardController) {
         await this.dashboardController.showDashboard(res, browserSession);
       }
     }));
 
-    // ── Search ────────────────────────────────────────────────────────
+    // publish event (admin or staff only)
+    this.app.post("/dashboard/events/:id/publish", asyncHandler(async (req, res) => {
+      if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can modify events.")) {
+        return;
+      }
+      const session = touchAppSession(sessionStore(req));
+      const eventId = typeof req.params.id === "string" ? req.params.id : "";
 
-    this.app.get("/events/search", asyncHandler(async (req, res) => {
-      if (!this.requireAuthenticated(req, res)) return;
-      await EventSearchController.handleSearch(req, res);
+      if (this.dashboardController) {
+        await this.dashboardController.publishEvent(res, eventId, session);
+      }
+    }));
+
+    // cancel event (admin or staff only)
+    this.app.post("/dashboard/events/:id/cancel", asyncHandler(async (req, res) => {
+      if (!this.requireRole(req, res, ["admin", "staff"], "Only staff or admin can modify events.")) {
+        return;
+      }
+      const session = touchAppSession(sessionStore(req));
+      const eventId = typeof req.params.id === "string" ? req.params.id : "";
+      if (this.dashboardController) {
+        await this.dashboardController.cancelEvent(res, eventId, session);
+      }
     }));
 
     // ── Comments ──────────────────────────────────────────────────────

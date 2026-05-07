@@ -1,0 +1,42 @@
+<%#
+  Dashboard — the app's home page after login.
+  Page header with quick actions, then the grouped event lists.
+%>
+<%
+  const user = session?.authenticatedUser ?? null;
+  const canCreate = user && (user.role === "admin" || user.role === "staff");
+%>
+
+<section class="mb-6 p-5 sm:p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
+  <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Dashboard</h1>
+      <% if (user) { %>
+        <p class="mt-1 text-sm text-slate-500">
+          Welcome back, <strong class="text-slate-700"><%= user.displayName %></strong>.
+        </p>
+      <% } %>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+      <a
+        href="/events"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-colors text-sm"
+      >
+        Browse events
+      </a>
+      <% if (canCreate) { %>
+        <a
+          href="/events/new"
+          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors text-sm shadow-sm"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z" clip-rule="evenodd" />
+          </svg>
+          Create event
+        </a>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<%- include("./_dashboard", { grouped: grouped || {}, session }) %>

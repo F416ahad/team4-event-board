@@ -1,20 +1,10 @@
-export type RSVPStatus = "going" | "waitlisted" | "cancelled"
-
-// rsvp object (single user's response)
-export interface RSVP {
-    id?: string; // optional
-    userId: string;
-    eventId?: string; // optional
-    status: RSVPStatus;
-}
-
-// event object
-export interface Event {
-    id: string;
-    title: string;
-    rsvps: RSVP[] // store user's responses in array
-    capacity?: number; // max number of people allowed
-    createdByUserId: string; // event owner (organizer)
-    status: "active" | "cancelled"; // track event status (active/cancelled)
-    date: string;
-}
+// Re-export the canonical types so existing imports from "./rsvp" keep working.
+// The single source of truth lives in src/events/Event.ts.
+export type {
+  Event,
+  EventCategory,
+  EventStatus,
+  RSVP,
+  RSVPStatus,
+} from "../events/Event"
+export { EVENT_CATEGORIES, coerceCategory, isEventCategory } from "../events/Event"
