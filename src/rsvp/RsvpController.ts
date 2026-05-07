@@ -44,7 +44,8 @@ export interface IRsvpController {
   showEvents(
     res: Response,
     session: IAppBrowserSession,
-    currentUserId?: string
+    currentUserId?: string,
+    filters?: { category?: string; timeframe?: string }
   ): Promise<void>;
   showEvent(
     res: Response,
@@ -163,17 +164,43 @@ class RsvpController implements IRsvpController {
   async showEvents(
     res: Response,
     session: IAppBrowserSession,
-    currentUserId?: string
+    currentUserId?: string,
+    filters?: { category?: string; timeframe?: string }
   ): Promise<void> {
-    const result = await this.service.listEvents();
+    const appliedFilters = {
+      category: filters?.category ?? "all",
+      timeframe: filters?.timeframe ?? "all-upcoming",
+    };
+
+    const result = await this.service.getFilteredEvents(appliedFilters);
+    const isHtmx = res.req.get("HX-Request") === "true";
+
     if (!result.ok) {
       const error = result.value as Error;
       this.logger.error(`Failed to list events: ${error.message}`);
+
+      if (isHtmx) {
+        res.status(500).render("partials/event-list", {
+          events: [],
+          layout: false,
+        });
+        return;
+      }
+
       res.status(500).render("events/index", {
         session,
         events: [],
-        filters: { category: "all" },
+        filters: appliedFilters,
         error: "Unable to load events",
+      });
+      return;
+    }
+
+    // HTMX swap target is #event-list-container, so return only the list partial.
+    if (isHtmx) {
+      res.render("partials/event-list", {
+        events: result.value,
+        layout: false,
       });
       return;
     }
@@ -181,7 +208,7 @@ class RsvpController implements IRsvpController {
     res.render("events/index", {
       session,
       events: result.value,
-      filters: { category: "all" },
+      filters: appliedFilters,
       currentUserId,
       error: null,
     });

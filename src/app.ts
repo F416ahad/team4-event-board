@@ -246,18 +246,26 @@ class ExpressApp implements IApp {
     this.app.get(
       "/events",
       asyncHandler(async (req, res) => {
-        if(!this.requireAuthenticated(req, res)) return; // make sure user is logged in
+        if (!this.requireAuthenticated(req, res)) return;
 
-        const store = sessionStore(req); // get session store from request
-        const browserSession = recordPageView(store); // record page view for session tracking
-        const user = getAuthenticatedUser(store); // get current authenticated user
+        const store = sessionStore(req);
+        const browserSession = recordPageView(store);
+        const user = getAuthenticatedUser(store);
 
         if (!this.rsvpController) {
           res.status(500).send("RSVP controller unavailable");
           return;
         }
 
-        await this.rsvpController.showEvents(res, browserSession, user?.userId); // get and return events
+        const category = typeof req.query.category === "string" ? req.query.category : undefined;
+        const timeframe = typeof req.query.timeframe === "string" ? req.query.timeframe : undefined;
+
+        await this.rsvpController.showEvents(
+          res,
+          browserSession,
+          user?.userId,
+          { category, timeframe },
+        );
       }),
     );
 

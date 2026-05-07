@@ -125,6 +125,69 @@ export class RsvpService {
     return await this.repo.getEvents();
   }
 
+  /**
+   * Feature 6: filter active, upcoming events by category and timeframe.
+   * - category "all" / omitted → no category filter
+   * - timeframe "all-upcoming" / omitted → just upcoming, no narrowing
+   * - timeframe "this-week" → events whose start is between now and 7 days from now
+   * - timeframe "this-weekend" → events on Saturday or Sunday of this week
+   */
+  async getFilteredEvents(filters: {
+    category?: string;
+    timeframe?: string;
+  }): Promise<Result<Event[], Error>> {
+    const result = await this.repo.getEvents();
+    if (!result.ok) return result;
+
+    const now = new Date();
+    let events = result.value.filter((e) => e.status === "active");
+
+    // Always exclude past events.
+    events = events.filter((e) => {
+      const d = e.date instanceof Date ? e.date : new Date(e.date);
+      return d.getTime() >= now.getTime();
+    });
+
+    // Category filter.
+    if (filters.category && filters.category !== "all") {
+      events = events.filter(
+        (e) => (e.category ?? "other").toLowerCase() === filters.category!.toLowerCase()
+      );
+    }
+
+    // Timeframe filter.
+    if (filters.timeframe === "this-week") {
+      const weekEnd = new Date(now);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      events = events.filter((e) => {
+        const d = e.date instanceof Date ? e.date : new Date(e.date);
+        return d.getTime() >= now.getTime() && d.getTime() <= weekEnd.getTime();
+      });
+    } else if (filters.timeframe === "this-weekend") {
+      // Saturday 00:00 of this week → Monday 00:00 (exclusive)
+      const day = now.getDay(); // 0 = Sun … 6 = Sat
+      const daysUntilSaturday = (6 - day + 7) % 7;
+      const saturday = new Date(now);
+      saturday.setDate(saturday.getDate() + daysUntilSaturday);
+      saturday.setHours(0, 0, 0, 0);
+      const monday = new Date(saturday);
+      monday.setDate(saturday.getDate() + 2);
+      events = events.filter((e) => {
+        const d = e.date instanceof Date ? e.date : new Date(e.date);
+        return d.getTime() >= saturday.getTime() && d.getTime() < monday.getTime();
+      });
+    }
+
+    // Sort by start date ascending so the most imminent events come first.
+    events.sort((a, b) => {
+      const aT = (a.date instanceof Date ? a.date : new Date(a.date)).getTime();
+      const bT = (b.date instanceof Date ? b.date : new Date(b.date)).getTime();
+      return aT - bT;
+    });
+
+    return Ok(events);
+  }
+
   // get single event by id
   async getEvent(eventId: string): Promise<Result<Event | null, Error>> {
     return await this.repo.getEvent(eventId);
