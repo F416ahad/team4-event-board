@@ -10,7 +10,7 @@
           
           <%# Only show these links if the user is actually logged in %>
           <% if (typeof session !== 'undefined' && session?.authenticatedUser) { %>
-            <a href="/savedEvents" class="text-sm font-medium text-slate-600 hover:text-blue-600">My Saved Events</a>
+            <a href="/my-saved-events" class="text-sm font-medium text-slate-600 hover:text-blue-600">My Saved Events</a>
             <a href="/dashboard" class="text-sm font-medium text-slate-600 hover:text-blue-600">Dashboard</a>
           <% } %>
         </div>

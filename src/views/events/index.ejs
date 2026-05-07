@@ -1,21 +1,6 @@
-<%- include('../partials/header') %>
-
-<!-- Page Header Section -->
-<section class="mb-8 p-8 border border-slate-200 rounded-3xl bg-gradient-to-br from-white to-slate-50 shadow-sm">
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-    <div>
-      <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 mb-2 tracking-tight">All Events</h1>
-      <p class="text-slate-500 text-sm md:text-lg italic">Sprint 4: Responsive & Filtered</p>
-    </div>
-    <div class="shrink-0">
-      <a href="/events/new" class="inline-flex items-center px-6 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95">
-        + Create Event
-      </a>
-    </div>
-  </div>
 <%#
   Events list page.
-  Shows all events with links to view details. Filter bar above the list.
+  Shows all events with search, filter, and a link into each event detail.
 %>
 
 <%# Contextual back link, above the hero %>
@@ -34,44 +19,53 @@
     </span>
     <div class="w-full">
       <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">All events</h1>
-      <p class="mt-1 text-sm text-slate-500 mb-4">
+      <p class="mt-1 mb-4 text-sm text-slate-500">
         Browse upcoming events. Click any one to view details, RSVP, or leave a comment.
       </p>
 
+      <%# Search (Feature 10) — HTMX swaps results into #event-list-container %>
       <div x-data="{ searchQuery: '' }" class="w-full max-w-2xl">
         <div class="relative group w-full">
           <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <svg class="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <svg class="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
           </div>
-          <input 
-            type="text" 
-            name="q" 
+          <input
+            type="text"
+            name="q"
             x-ref="searchInput"
             x-model="searchQuery"
-            hx-get="/events/search" 
-            hx-target="#event-list-container" 
+            hx-get="/events/search"
+            hx-target="#event-list-container"
             hx-trigger="input changed delay:500ms, search"
-            class="block w-full pl-11 pr-12 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+            class="block w-full pl-11 pr-12 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all text-sm"
             placeholder="Search events by title, description, or location..."
-          >
-          <button 
-            type="button" 
+          />
+          <button
+            type="button"
             x-show="searchQuery.length > 0"
+            x-cloak
             x-transition.opacity
-            x-on:click="searchQuery = ''; $nextTick(() => { $refs.searchInput.dispatchEvent(new Event('input', {bubbles: true})) })"
+            x-on:click="searchQuery = ''; $nextTick(() => { $refs.searchInput.dispatchEvent(new Event('input', { bubbles: true })) })"
             class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700"
-            style="display: none;" 
+            aria-label="Clear search"
           >
-            <svg class="h-5 w-5 bg-slate-100 rounded-full p-0.5 hover:bg-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <svg class="h-5 w-5 bg-slate-100 rounded-full p-0.5 hover:bg-slate-200"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"/>
+            </svg>
           </button>
         </div>
       </div>
-
     </div>
   </div>
 </section>
 
-<%# Filter bar with HTMX %>
+<%# Filter bar — Category + Timeframe %>
 <section class="mb-5 p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
   <form hx-get="/events"
         hx-target="#event-list-container"
@@ -104,94 +98,24 @@
     <button type="submit" class="px-4 py-2 bg-slate-700 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors">
       Filter
     </button>
+
+    <%# Quick link to the user's saved events list %>
+    <a href="/my-saved-events"
+       class="ml-auto inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-colors">
+      <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" clip-rule="evenodd"/>
+      </svg>
+      My saved events
+    </a>
   </form>
 </section>
 
-<%# Feature 6: Final Polished Filter Bar %>
-<section class="mb-10">
-  <div class="bg-white p-2 rounded-2xl border border-slate-200 shadow-md">
-    <form x-data="{ 
-            category: '<%= filters?.category || 'all' %>', 
-            timeframe: '<%= filters?.timeframe || 'all-upcoming' %>' 
-          }"
-          hx-get="/events" 
-          hx-target="#event-list-container" 
-          hx-trigger="change" 
-          hx-push-url="true" 
-          class="flex flex-wrap md:flex-nowrap gap-2 items-center">
-      
-      <!-- Category Dropdown -->
-      <div class="flex-1 min-w-[200px] relative">
-        <select name="category" 
-                x-model="category"
-                class="w-full pl-4 pr-4 py-3 rounded-xl border-transparent bg-slate-50 text-slate-700 font-medium text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
-          <option value="all">All Categories</option>
-          <option value="Academic">📚 Academic</option>
-          <option value="Social">🎉 Social</option>
-        </select>
-      </div>
+<%# Display any page-level error %>
+<% if (typeof error !== 'undefined' && error) { %>
+  <%- include("../partials/error", { message: error }) %>
+<% } %>
 
-      <!-- Timeframe dropdown -->
-      <div class="flex-1 min-w-[200px] relative">
-        <select name="timeframe" 
-                x-model="timeframe"
-                class="w-full pl-4 pr-4 py-3 rounded-xl border-transparent bg-slate-50 text-slate-700 font-medium text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
-          <option value="all-upcoming">All Upcoming</option>
-          <option value="this-week">This Week</option>
-          <option value="this-weekend">This Weekend</option>
-        </select>
-      </div>
-
-      <!-- Buttons area -->
-      <div class="flex items-center gap-4 w-full md:w-auto px-2">
-        <button type="submit" 
-                class="flex-1 md:flex-none px-8 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-blue-600 transition-all shadow-md">
-          Apply
-        </button>
-
-        <!-- 2. Clear filters link: Only shows if filters are NOT at default values -->
-        <a href="/events" 
-           x-show="category !== 'all' || timeframe !== 'all-upcoming'" 
-           x-transition:enter="transition ease-out duration-300"
-           x-transition:enter-start="opacity-0 scale-90"
-           x-transition:enter-end="opacity-100 scale-100"
-           class="text-sm font-bold text-red-500 hover:text-red-700 whitespace-nowrap"
-           style="display: none;"> <!-- style prevents 'flicker' on page load -->
-          Clear All
-        <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </div>
-      </div>
-
-      <!-- Actions group -->
-      <div class="flex items-center justify-between w-full md:w-auto px-4 py-2 md:py-0 gap-4">
-        <button type="submit" 
-                class="hidden md:block px-6 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-blue-600 transition-all shadow-sm">
-          Filter
-        </button>
-
-        <a href="/events" 
-           hx-boost="true"
-           x-show="category !== 'all' || timeframe !== 'all-upcoming'" 
-           x-transition
-           class="text-sm font-bold text-red-500 hover:text-red-700 decoration-2 underline-offset-4 hover:underline"
-           style="display: none;">
-          Clear Filters
-        </a>
-      </div>
-    </form>
-  </div>
-</section>
-
-<!-- Target for HTMX swaps -->
+<%# Events list container — HTMX swap target %>
 <div id="event-list-container" class="min-h-[300px]">
   <%- include("../partials/event-list") %>
 </div>
-
-<%- include('../partials/footer') %>
-<%# Events list container — HTMX swap target %>
-<div id="event-list-container">
-  <%- include("../partials/event-list") %>
-</div>
-
-<%- include('../partials/footer') %>
