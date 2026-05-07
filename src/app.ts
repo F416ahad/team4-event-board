@@ -279,6 +279,13 @@ class ExpressApp implements IApp {
       })
     );
 
+    // ── Search ────────────────────────────────────────────────────────
+    // CRITICAL FIX: Moved this ABOVE the /events/:eventId wildcard!
+    this.app.get("/events/search", asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) return;
+      await EventSearchController.handleSearch(req, res);
+    }));
+
     // HIGHLIGHT
     // Show single event detail with rsvp button
     this.app.get(
@@ -565,13 +572,6 @@ class ExpressApp implements IApp {
       if (this.dashboardController) {
         await this.dashboardController.cancelEvent(res, eventId, session);
       }
-    }));
-    
-    // ── Search ────────────────────────────────────────────────────────
-
-    this.app.get("/events/search", asyncHandler(async (req, res) => {
-      if (!this.requireAuthenticated(req, res)) return;
-      await EventSearchController.handleSearch(req, res);
     }));
 
     // ── Comments ──────────────────────────────────────────────────────

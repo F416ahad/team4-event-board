@@ -1,39 +1,37 @@
-import { getAllEvents } from '../repositories/InMemoryEventRepository';
+import prisma from '../lib/prismaClient';
 import { Result, Ok, Err } from '../lib/result';
 
 export const EventSearchService = {
   /**
-   * Searches published, upcoming events by title, description, or location.
-   * An empty query returns all published upcoming events.
+   * Searches events by title directly in the Prisma database.
+   * An empty query returns all active/cancelled events.
    */
   searchEvents: async (query: string = ""): Promise<Result<any[], Error>> => {
     try {
-      // 1. Get all events using the new function
-      const allEvents = getAllEvents(); 
+      const search = query.trim();
 
-      // 2. Base filter: Only "published" and "upcoming" events
-      const now = new Date();
-      let results = allEvents.filter(event => 
-        event.status === 'published' && 
-        new Date(event.startDatetime) >= now
-      );
+      const results = await prisma.event.findMany({
+        where: {
+          // 1. Base filter: Only get active or cancelled events
+          status: { 
+            in: ['active', 'cancelled'] 
+          },
+          
+          // 2. If there is a search term, ONLY look for it in the title field
+          ...(search ? {
+            title: { contains: search } // Prisma is happy because 'title' definitely exists!
+          } : {})
+        },
+        // Bonus UX: Order the results so the soonest events show up first
+        orderBy: {
+          date: 'asc'
+        }
+      });
 
-      // 3. If there is a search term, filter further
-      if (query.trim() !== "") {
-        const lowerQuery = query.toLowerCase().trim();
-        
-        results = results.filter(event => 
-          (event.title && event.title.toLowerCase().includes(lowerQuery)) ||
-          (event.description && event.description.toLowerCase().includes(lowerQuery)) ||
-          (event.location && event.location.toLowerCase().includes(lowerQuery))
-        );
-      }
-
-      // 4. Return the filtered results using the Ok helper
       return Ok(results);
 
     } catch (err) {
-      // Return the error using the Err helper
+      console.error("Database Search Error:", err);
       return Err(new Error("Failed to perform event search"));
     }
   }
