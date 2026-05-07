@@ -1,13 +1,22 @@
-<%# 
+<%#
   Create new event form.
   Only accessible to users with 'staff' or 'admin' role.
-  Submits POST /events with title and optional capacity.
+  Submits POST /events with title, category, start date, optional end time, and optional capacity.
 %>
 
-<section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
-  <h1 class="text-3xl font-bold text-slate-900 mb-3">Create New Event</h1>
-  <p class="text-slate-500">
-    Fill in the event details. Capacity is optional – leave empty for unlimited.
+<%# Contextual back link, above the hero %>
+<div class="mb-3">
+  <a href="/dashboard" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-700 transition-colors">
+    &larr; Back to dashboard
+  </a>
+</div>
+
+<section class="mb-5 p-5 sm:p-6 border border-slate-200 rounded-2xl bg-gradient-to-br from-white to-indigo-50/40 shadow-sm">
+  <p class="text-xs uppercase tracking-wider text-indigo-600 font-semibold mb-1.5">New event</p>
+  <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Create event</h1>
+  <p class="mt-1 text-sm text-slate-500">
+    Fill in the event details. Capacity is optional &mdash; leave empty for unlimited. Once the
+    end time passes, the event is automatically moved to the archive.
   </p>
 </section>
 
@@ -26,6 +35,43 @@
         required
         class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
       />
+    </div>
+
+    <div>
+      <label for="category" class="block text-sm font-medium text-slate-700 mb-1">Category *</label>
+      <select
+        id="category"
+        name="category"
+        required
+        class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
+      >
+        <% (typeof categories !== 'undefined' ? categories : ['academic','social','sports','arts','tech','other']).forEach(cat => { %>
+          <option value="<%= cat %>" class="capitalize"><%= cat.charAt(0).toUpperCase() + cat.slice(1) %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <label for="date" class="block text-sm font-medium text-slate-700 mb-1">Starts *</label>
+        <input
+          type="datetime-local"
+          id="date"
+          name="date"
+          required
+          class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
+        />
+      </div>
+      <div>
+        <label for="endTime" class="block text-sm font-medium text-slate-700 mb-1">Ends</label>
+        <input
+          type="datetime-local"
+          id="endTime"
+          name="endTime"
+          class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
+        />
+        <p class="text-xs text-slate-400 mt-1">Used to auto-archive the event when it ends.</p>
+      </div>
     </div>
 
     <div>
@@ -48,7 +94,4 @@
     </button>
   </form>
 
-  <div class="mt-6 pt-4 border-t border-slate-200">
-    <a href="/events" class="text-blue-600 hover:underline">&larr; Back to Events</a>
-  </div>
 </section>

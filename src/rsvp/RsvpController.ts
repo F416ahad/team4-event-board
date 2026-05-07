@@ -3,7 +3,10 @@ import type { RsvpService } from "./RsvpService";
 import type { ILoggingService } from "../service/LoggingService";
 import type { IAppBrowserSession } from "../session/AppSession";
 import type { UserRole } from "../auth/User";
+import type { EventCategory } from "./rsvp";
+import { EVENT_CATEGORIES } from "./rsvp";
 import { Result } from "../lib/result";
+import { SavedEventService } from "../savedEvents/SavedEventService";
 
 import {
   EventNotFoundError,
@@ -13,6 +16,23 @@ import {
   EventInvalidStateError,
   EventInvalidInputError,
 } from "./errors";
+
+export interface CreateEventInputDTO {
+  title: string;
+  capacity?: number | null;
+  category?: EventCategory;
+  date?: Date;
+  endTime?: Date | null;
+}
+
+export interface UpdateEventInputDTO {
+  title: string;
+  capacity?: number | null;
+  date: Date;
+  endTime?: Date | null;
+  category?: EventCategory;
+  status: "active" | "cancelled";
+}
 
 export interface IRsvpController {
   toggleRSVP(
@@ -39,23 +59,21 @@ export interface IRsvpController {
     actorUserId: string,
     actorRole: UserRole
   ): Promise<void>;
+  showCreateEventForm(
+    res: Response,
+    session: IAppBrowserSession
+  ): Promise<void>;
   updateEvent(
     res: Response,
     eventId: string,
     session: IAppBrowserSession,
     actorUserId: string,
     actorRole: UserRole,
-    updates: {
-      title: string;
-      capacity?: number;
-      date: string;
-      status: "active" | "cancelled";
-    }
+    updates: UpdateEventInputDTO
   ): Promise<void>;
   createEvent(
     res: Response,
-    title: string,
-    capacity: number | undefined,
+    input: CreateEventInputDTO,
     session: IAppBrowserSession,
     userId: string,
     creator: { email: string; displayName: string; role: UserRole }
@@ -103,7 +121,7 @@ class RsvpController implements IRsvpController {
     if (!result.ok) {
       const error = result.value as Error;
       const status = this.mapErrorStatus(error);
-      
+
       this.logger.warn(`RSVP toggle failed: ${error.message}`);
 
       res
@@ -187,6 +205,8 @@ class RsvpController implements IRsvpController {
         session,
         event: null,
         userRsvp: null,
+        attendeeCount: 0,
+        isSaved: false,
         error: errorMsg,
       });
       return;
@@ -195,16 +215,39 @@ class RsvpController implements IRsvpController {
     const event = result.value;
     const rsvpResult = await this.service.getUserRsvp(eventId, currentUserId);
     const userRsvp = rsvpResult.ok ? rsvpResult.value : null;
-
+    
+    // --- RESTORED ATTENDEE COUNT LOGIC ---
     const countResult = await this.service.countGoing(eventId);
     const attendeeCount = countResult.ok ? countResult.value : 0;
+
+    // --- FEATURE 14: SAVE FOR LATER LOGIC ADDED HERE ---
+    let isSaved = false;
+    if (currentUserId) {
+      const savedEventsResult = await SavedEventService.getSavedEventsForUser(currentUserId);
+      if (savedEventsResult.ok) {
+        isSaved = savedEventsResult.value.includes(eventId);
+      }
+    }
+    // ---------------------------------------------------
 
     res.render("events/show", {
       session,
       event,
       userRsvp,
       attendeeCount,
+      isSaved, // <-- PASSED TO TEMPLATE HERE
       error: null,
+    });
+  }
+
+  async showCreateEventForm(
+    res: Response,
+    session: IAppBrowserSession
+  ): Promise<void> {
+    res.render("events/new", {
+      session,
+      error: null,
+      categories: EVENT_CATEGORIES,
     });
   }
 
@@ -239,7 +282,12 @@ class RsvpController implements IRsvpController {
       return;
     }
 
-    res.render("events/edit", { session, event, error: null });
+    res.render("events/edit", {
+      session,
+      event,
+      categories: EVENT_CATEGORIES,
+      error: null,
+    });
   }
 
   async updateEvent(
@@ -248,12 +296,7 @@ class RsvpController implements IRsvpController {
     session: IAppBrowserSession,
     actorUserId: string,
     actorRole: UserRole,
-    updates: {
-      title: string;
-      capacity?: number;
-      date: string;
-      status: "active" | "cancelled";
-    }
+    updates: UpdateEventInputDTO
   ): Promise<void> {
     const result = await this.service.editEvent(
       eventId,
@@ -269,14 +312,20 @@ class RsvpController implements IRsvpController {
 
       res.status(status).render("events/edit", {
         session,
+        categories: EVENT_CATEGORIES,
         event:
           eventResult.ok && eventResult.value
             ? eventResult.value
             : {
                 id: eventId,
-                ...updates,
+                title: updates.title,
+                capacity: updates.capacity ?? null,
+                status: updates.status,
+                date: updates.date,
+                endTime: updates.endTime ?? null,
+                category: updates.category ?? "other",
                 createdByUserId: actorUserId,
-                rsvps: [],
+                createdAt: new Date(),
               },
         error: error.message,
       });
@@ -288,27 +337,30 @@ class RsvpController implements IRsvpController {
 
   async createEvent(
     res: Response,
-    title: string,
-    capacity: number | undefined,
+    input: CreateEventInputDTO,
     session: IAppBrowserSession,
     userId: string,
     creator: { email: string; displayName: string; role: UserRole }
   ): Promise<void> {
-    if (!title) {
+    if (!input.title) {
       res.status(400).render("events/new", {
         session,
         error: "Event title is required",
+        categories: EVENT_CATEGORIES,
         event: null,
       });
       return;
     }
 
-    const result = await this.service.createEvent(
-      title,
-      userId,
-      capacity,
-      creator
-    );
+    const result = await this.service.createEvent({
+      title: input.title,
+      createdByUserId: userId,
+      capacity: input.capacity,
+      category: input.category,
+      date: input.date,
+      endTime: input.endTime,
+      creator,
+    });
 
     if (!result.ok) {
       const error = result.value as Error;
@@ -316,13 +368,14 @@ class RsvpController implements IRsvpController {
       res.status(400).render("events/new", {
         session,
         error: error.message,
+        categories: EVENT_CATEGORIES,
         event: null,
       });
       return;
     }
 
-    this.logger.info(`Event created: ${title}`);
-    res.redirect("/events");
+    this.logger.info(`Event created: ${input.title}`);
+    res.redirect("/dashboard");
   }
 
   async getEventOwnerId(eventId: string): Promise<Result<string | null, Error>> {

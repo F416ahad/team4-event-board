@@ -1,112 +1,102 @@
+<%
+  const activeEvents    = grouped.active    || [];
+  const cancelledEvents = grouped.cancelled || [];
+  const pastEvents      = grouped.past      || [];
+
+  // Show only the 3 most recent archived events on the dashboard.
+  // The full archive lives at /archive.
+  const archivePreview = pastEvents.slice(0, 3);
+%>
+
 <div class="grid gap-8">
-
-  <!-- Draft Events -->
-  <section>
-    <h2 class="text-xl font-semibold mb-3">Draft Events</h2>
-
-    <% (grouped.draft || []).forEach(event => { %>
-      <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
-        <%- include("./_event-row", { event, session }) %>
-      </div>
-    <% }) %>
-
-    <% if ((grouped.draft || []).length === 0) { %>
-      <p class="text-slate-500">No draft events.</p>
-    <% } %>
-  </section>
 
   <!-- Active Events -->
   <section>
-    <h2 class="text-xl font-semibold mb-3">Active Events</h2>
+    <h2 class="text-xl font-semibold text-slate-800 mb-3">Active events</h2>
 
-    <% (grouped.active || []).forEach(event => { %>
-      <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
-        <%- include("./_event-row", { event, session }) %>
-      </div>
-    <% }) %>
-
-    <% if ((grouped.active || []).length === 0) { %>
-      <p class="text-slate-500">No active events.</p>
+    <% if (activeEvents.length === 0) { %>
+      <p class="text-sm text-slate-500 italic">No active events.</p>
+    <% } else { %>
+      <% activeEvents.forEach(event => { %>
+        <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
+          <%- include("./_event-row", { event, session }) %>
+        </div>
+      <% }) %>
     <% } %>
   </section>
 
   <!-- Cancelled Events -->
-  <section>
-    <h2 class="text-xl font-semibold mb-3">Cancelled Events</h2>
+  <% if (cancelledEvents.length > 0) { %>
+    <section>
+      <h2 class="text-xl font-semibold text-slate-800 mb-3">Cancelled events</h2>
 
-    <% (grouped.cancelled || []).forEach(event => { %>
-      <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
-        <%- include("./_event-row", { event, session }) %>
-      </div>
-    <% }) %>
-
-    <% if ((grouped.cancelled || []).length === 0) { %>
-      <p class="text-slate-500">No cancelled events.</p>
-    <% } %>
-  </section>
-
-  <!-- Past Events (Archive) -->
-<section x-data="{ activeCategory: '', showAttendeesFor: null }">
-  <h2 class="text-xl font-semibold mb-3">Past Events</h2>
-
-  <!-- Category filter — client-side via Alpine -->
-  <div class="mb-4 flex gap-2 flex-wrap">
-    <button
-      @click="activeCategory = ''"
-      :class="activeCategory === '' ? 'bg-slate-800 text-white' : 'bg-white text-slate-700'"
-      class="px-3 py-1 rounded border text-sm">
-      All
-    </button>
-    <% ['academic','social','sports','arts','tech','other'].forEach(cat => { %>
-      <button
-        @click="activeCategory = '<%= cat %>'"
-        :class="activeCategory === '<%= cat %>' ? 'bg-slate-800 text-white' : 'bg-white text-slate-700'"
-        class="px-3 py-1 rounded border text-sm capitalize">
-        <%= cat %>
-      </button>
-    <% }) %>
-  </div>
-
-  <!-- Event list filtered by Alpine -->
-  <% (grouped.past || []).forEach(event => { %>
-    <div
-      x-show="activeCategory === '' || activeCategory === '<%= event.category ?? 'other' %>'"
-      class="border rounded-lg p-4 mb-3 bg-gray-50 opacity-80">
-      <div class="flex justify-between items-start">
-        <div>
-          <strong class="text-slate-800"><%= event.title %></strong>
-          <p class="text-sm text-slate-500 capitalize">
-            <%= event.category ?? 'other' %> •
-            Ended <%= event.date ? new Date(event.date).toLocaleDateString() : '' %>
-          </p>
+      <% cancelledEvents.forEach(event => { %>
+        <div id="event-<%= event.id %>" hx-target="this" hx-swap="outerHTML">
+          <%- include("./_event-row", { event, session }) %>
         </div>
-        <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 capitalize">
-          <%= event.status %>
+      <% }) %>
+    </section>
+  <% } %>
+
+  <!-- Archive (collapsible, max 3 preview) -->
+  <section x-data="{ shown: false }" class="rounded-2xl border border-slate-200 bg-slate-50/60 overflow-hidden">
+    <button
+      type="button"
+      @click="shown = !shown"
+      :aria-expanded="shown.toString()"
+      class="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-3 text-left bg-transparent border-0 cursor-pointer hover:bg-slate-100/60 transition-colors"
+    >
+      <div class="flex items-center gap-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+        <h2 class="text-lg font-semibold text-slate-700">Archive</h2>
+        <span class="inline-flex items-center justify-center min-w-[1.75rem] h-6 px-2 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-600">
+          <%= pastEvents.length %>
         </span>
       </div>
+      <svg
+        class="w-4 h-4 text-slate-500 transition-transform"
+        :class="shown ? 'rotate-180' : ''"
+        viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+      >
+        <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+      </svg>
+    </button>
 
-      <!-- Attendees toggle -->
-      <button
-        @click="showAttendeesFor = showAttendeesFor === '<%= event.id %>' ? null : '<%= event.id %>'"
-        class="mt-2 text-xs text-blue-600 hover:underline bg-transparent border-0 p-0 cursor-pointer">
-        <span x-text="showAttendeesFor === '<%= event.id %>' ? 'Hide Attendees' : 'View Attendees'"></span>
-      </button>
+    <div x-show="shown" x-cloak x-transition.opacity class="px-4 sm:px-5 pb-4 sm:pb-5 pt-1 border-t border-slate-200/70">
+      <% if (pastEvents.length === 0) { %>
+        <p class="py-4 text-sm text-slate-500 italic">No archived events yet.</p>
+      <% } else { %>
+        <p class="text-xs uppercase tracking-wider text-slate-400 mt-3 mb-2">
+          Most recent
+        </p>
+        <ul class="grid gap-2">
+          <% archivePreview.forEach(event => { %>
+            <li class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+              <div class="min-w-0 flex-1">
+                <p class="font-medium text-slate-700 truncate"><%= event.title %></p>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  <span class="capitalize"><%= event.category ?? 'other' %></span>
+                  <span aria-hidden="true"> · </span>
+                  Ended <%= event.date ? new Date(event.endTime ?? event.date).toLocaleDateString() : '' %>
+                </p>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
 
-      <!-- Attendees loaded via HTMX when revealed -->
-      <div
-        x-show="showAttendeesFor === '<%= event.id %>'"
-        x-transition
-        hx-get="/events/<%= event.id %>/attendees"
-        hx-trigger="intersect once"
-        hx-swap="innerHTML"
-        class="mt-2">
-      </div>
+        <div class="mt-4 flex justify-end">
+          <a
+            href="/archive"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-700 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
+          >
+            See full archive
+            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.06 10 7.23 6.29a.75.75 0 111.04-1.08l4.39 4.25a.75.75 0 010 1.08l-4.39 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+            </svg>
+          </a>
+        </div>
+      <% } %>
     </div>
-  <% }) %>
-
-  <% if ((grouped.past || []).length === 0) { %>
-    <p class="text-slate-500">No past events.</p>
-  <% } %>
-</section>
+  </section>
 
 </div>
