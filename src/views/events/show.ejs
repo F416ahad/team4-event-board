@@ -4,9 +4,28 @@
   Requires user to be authenticated.
 %>
 
-<section class="mb-5 p-5 sm:p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
-  <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-2"><%= event ? event.title : 'Event Details' %></h1>
-  <p class="text-slate-500">View event details, RSVP, and join the conversation.</p>
+<%# Contextual back link, above the hero %>
+<div class="mb-3">
+  <a href="/events" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-700 transition-colors">
+    &larr; Back to events
+  </a>
+</div>
+
+<section class="mb-5 p-5 sm:p-6 border border-slate-200 rounded-2xl bg-gradient-to-br from-white via-white to-indigo-50/40 shadow-sm">
+  <div class="flex items-start justify-between gap-3">
+    <div class="min-w-0 flex-1">
+      <% if (event) { %>
+        <p class="text-xs uppercase tracking-wider text-indigo-600 font-semibold mb-1.5">Event</p>
+      <% } %>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900"><%= event ? event.title : 'Event Details' %></h1>
+      <p class="mt-1 text-sm text-slate-500">View event details, RSVP, and join the conversation.</p>
+    </div>
+    <% if (event?.category) { %>
+      <span class="inline-flex shrink-0 items-center px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium capitalize border border-indigo-100">
+        <%= event.category %>
+      </span>
+    <% } %>
+  </div>
 </section>
 
 <% if (typeof error !== 'undefined' && error) { %>
@@ -19,46 +38,52 @@
     <%# ============================
         EVENT INFO CARD
         ============================ %>
-    <div class="p-6 border border-slate-200 rounded-2xl bg-white shadow-md">
+    <div class="p-6 border border-slate-200 rounded-2xl bg-white shadow-sm">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <p class="text-sm text-slate-500">Starts</p>
-          <p class="font-medium"><%= new Date(event.date).toLocaleString() %></p>
+          <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Starts</p>
+          <p class="font-medium text-slate-800 mt-0.5"><%= new Date(event.date).toLocaleString() %></p>
         </div>
         <div>
-          <p class="text-sm text-slate-500">Ends</p>
-          <p class="font-medium">
+          <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Ends</p>
+          <p class="font-medium text-slate-800 mt-0.5">
             <%= event.endTime ? new Date(event.endTime).toLocaleString() : '—' %>
           </p>
         </div>
         <div>
-          <p class="text-sm text-slate-500">Category</p>
-          <p class="font-medium capitalize"><%= event.category ?? 'other' %></p>
-        </div>
-        <div>
-          <p class="text-sm text-slate-500">Status</p>
-          <p class="font-medium capitalize
+          <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Status</p>
+          <p class="font-medium capitalize mt-0.5
             <%= event.status === 'cancelled' ? 'text-red-600'
                 : event.status === 'past' ? 'text-slate-500'
-                : 'text-green-600' %>">
+                : 'text-emerald-700' %>">
             <%= event.status %>
           </p>
         </div>
         <div>
-          <p class="text-sm text-slate-500">Capacity</p>
-          <p class="font-medium"><%= event.capacity ? event.capacity : 'Unlimited' %></p>
+          <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Capacity</p>
+          <p class="font-medium text-slate-800 mt-0.5"><%= event.capacity ? event.capacity : 'Unlimited' %></p>
         </div>
       </div>
+
+      <%# Auto-archive hint — Feature 11 surfacing %>
+      <% if (event.endTime && event.status === 'active') { %>
+        <p class="mt-4 inline-flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg">
+          <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .2.08.4.22.53l3 3a.75.75 0 101.06-1.06L10.75 9.69V5z" clip-rule="evenodd"/>
+          </svg>
+          Auto-archives after <%= new Date(event.endTime).toLocaleString() %>
+        </p>
+      <% } %>
 
       <% const canEditEvent = session?.authenticatedUser &&
          (session.authenticatedUser.role === "admin" ||
          (session.authenticatedUser.role === "staff" && session.authenticatedUser.userId === event.createdByUserId)); %>
 
       <% if (canEditEvent) { %>
-        <div class="mt-4">
+        <div class="mt-5">
           <a href="/events/<%= event.id %>/edit"
-             class="inline-block px-4 py-2 rounded-lg bg-slate-700 text-white font-medium hover:bg-slate-800">
-            Edit Event
+             class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-700 text-white text-sm font-medium hover:bg-slate-800 transition-colors">
+            Edit event
           </a>
         </div>
       <% } %>
@@ -69,12 +94,12 @@
       <% if (userRsvp) { %>
 
         <% if (userRsvp.status === "going") { %>
-          <div class="mt-4 p-3 rounded-lg bg-green-100 text-green-800 border border-green-300">
+          <div class="mt-4 p-3 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-sm">
             You are attending this event.
           </div>
 
         <% } else if (userRsvp.status === "waitlisted") { %>
-          <div class="mt-4 p-3 rounded-lg bg-yellow-100 text-yellow-800 border border-yellow-300">
+          <div class="mt-4 p-3 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-sm">
             You are on the waitlist.
             <% if (typeof waitlistPosition !== "undefined" && waitlistPosition !== null) { %>
               <br>Your position: <strong>#<%= waitlistPosition %></strong>
@@ -85,27 +110,33 @@
       <% } %>
 
       <%# ============================
-          RSVP BUTTON (HTMX)
+          RSVP BUTTON (HTMX) — only when the event is open for RSVPs
           ============================ %>
       <div class="mt-6 pt-4 border-t border-slate-200" id="rsvp-status">
-        <button hx-post="/events/<%= event.id %>/rsvp"
-                hx-target="#rsvp-status"
-                hx-swap="outerHTML"
-                class="px-6 py-2.5 rounded-lg font-medium transition-colors
-                       <%= userRsvp?.status === 'going' ? 'bg-red-600 hover:bg-red-700' :
-                          userRsvp?.status === 'waitlisted' ? 'bg-yellow-600 hover:bg-yellow-700' :
-                          'bg-blue-600 hover:bg-blue-700' %>">
-          <% if (userRsvp?.status === 'going') { %>
-            Cancel RSVP
-          <% } else if (userRsvp?.status === 'waitlisted') { %>
-            Waitlisted
-          <% } else { %>
-            RSVP
-          <% } %>
-        </button>
+        <% if (event.status === 'past') { %>
+          <p class="text-sm text-slate-500 italic">This event has ended.</p>
+        <% } else if (event.status === 'cancelled') { %>
+          <p class="text-sm text-red-600 italic">This event was cancelled.</p>
+        <% } else { %>
+          <button hx-post="/events/<%= event.id %>/rsvp"
+                  hx-target="#rsvp-status"
+                  hx-swap="outerHTML"
+                  class="px-6 py-2.5 rounded-lg font-medium text-white transition-colors shadow-sm
+                         <%= userRsvp?.status === 'going' ? 'bg-red-600 hover:bg-red-700' :
+                            userRsvp?.status === 'waitlisted' ? 'bg-amber-500 hover:bg-amber-600' :
+                            'bg-blue-600 hover:bg-blue-700' %>">
+            <% if (userRsvp?.status === 'going') { %>
+              Cancel RSVP
+            <% } else if (userRsvp?.status === 'waitlisted') { %>
+              Waitlisted
+            <% } else { %>
+              RSVP
+            <% } %>
+          </button>
+        <% } %>
 
         <p class="text-sm text-slate-500 mt-2">
-          Attendees going: <span><%= attendeeCount || 0 %></span>
+          Attendees going: <span class="font-medium text-slate-700"><%= attendeeCount || 0 %></span>
         </p>
       </div>
     </div>
@@ -113,20 +144,16 @@
     <%# ============================
         COMMENTS SECTION (HTMX)
         ============================ %>
-    <div class="p-6 border border-slate-200 rounded-2xl bg-white shadow-md">
-      <h2 class="text-xl font-semibold mb-4">Comments</h2>
+    <div class="p-6 border border-slate-200 rounded-2xl bg-white shadow-sm">
+      <h2 class="text-xl font-semibold text-slate-800 mb-4">Comments</h2>
 
       <div id="comment-list-container"
            hx-get="/events/<%= event.id %>/comments/partial"
            hx-trigger="load, commentChanged from:body"
            hx-target="#comment-list-container"
            hx-swap="outerHTML">
-        <div class="text-center py-8 text-slate-400">Loading comments...</div>
+        <div class="text-center py-8 text-slate-400">Loading comments…</div>
       </div>
-    </div>
-
-    <div>
-      <a href="/events" class="text-blue-600 hover:underline">&larr; Back to Events</a>
     </div>
 
   </div>

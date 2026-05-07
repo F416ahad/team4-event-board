@@ -4,9 +4,17 @@
   Submits POST /events with title, category, start date, optional end time, and optional capacity.
 %>
 
-<section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
-  <h1 class="text-3xl font-bold text-slate-900 mb-3">Create New Event</h1>
-  <p class="text-slate-500">
+<%# Contextual back link, above the hero %>
+<div class="mb-3">
+  <a href="/dashboard" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-700 transition-colors">
+    &larr; Back to dashboard
+  </a>
+</div>
+
+<section class="mb-5 p-5 sm:p-6 border border-slate-200 rounded-2xl bg-gradient-to-br from-white to-indigo-50/40 shadow-sm">
+  <p class="text-xs uppercase tracking-wider text-indigo-600 font-semibold mb-1.5">New event</p>
+  <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Create event</h1>
+  <p class="mt-1 text-sm text-slate-500">
     Fill in the event details. Capacity is optional &mdash; leave empty for unlimited. Once the
     end time passes, the event is automatically moved to the archive.
   </p>
@@ -86,7 +94,4 @@
     </button>
   </form>
 
-  <div class="mt-6 pt-4 border-t border-slate-200">
-    <a href="/dashboard" class="text-blue-600 hover:underline">&larr; Back to Dashboard</a>
-  </div>
 </section>

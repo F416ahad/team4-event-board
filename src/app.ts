@@ -242,22 +242,6 @@ class ExpressApp implements IApp {
       }),
     );
 
-    // ── Authenticated home page ──────────────────────────────────────
-    // TODO: Replace this placeholder with your project's main page.
-
-    this.app.get(
-      "/home",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const browserSession = recordPageView(sessionStore(req));
-        this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null, dashboard: null });
-      }),
-    );
-
     // list all events (authenticated users)
     this.app.get(
       "/events",
@@ -548,18 +532,10 @@ class ExpressApp implements IApp {
       })
     );
 
-    // ── Home ──────────────────────────────────────────────────────────
-
-    this.app.get("/home", asyncHandler(async (req, res) => {
-      if (!this.requireAuthenticated(req, res)) return;
-      const browserSession = recordPageView(sessionStore(req));
-      this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-      res.render("home", { session: browserSession, pageError: null, dashboard: null });
-    }));
-
-    // ── Dashboard ─────────────────────────────────────────────────────
+    // ── Dashboard (the app's home page) ───────────────────────────────
 
     this.app.get("/dashboard", asyncHandler(async (req, res) => {
+      if (!this.requireAuthenticated(req, res)) return;
       const browserSession = recordPageView(sessionStore(req));
       if (this.dashboardController) {
         await this.dashboardController.showDashboard(res, browserSession);

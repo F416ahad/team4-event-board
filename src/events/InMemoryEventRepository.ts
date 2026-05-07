@@ -50,8 +50,13 @@ export class InMemoryEventRepository implements IEventRepository {
     const now = new Date()
     let count = 0
     for (const event of this.events.values()) {
-      const cutoff = event.endTime ?? event.date
-      if (event.status === "active" && cutoff <= now) {
+      // Only transition if endTime is explicitly set and has passed.
+      // Matches the Prisma adapter's lte semantics (which doesn't match null).
+      if (
+        event.status === "active" &&
+        event.endTime != null &&
+        event.endTime.getTime() <= now.getTime()
+      ) {
         this.events.set(event.id, { ...event, status: "past" })
         count++
       }

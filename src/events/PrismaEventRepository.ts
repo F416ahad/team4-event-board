@@ -47,14 +47,12 @@ export class PrismaEventRepository implements IEventRepository {
 
   async transitionExpired(): Promise<number> {
     const now = new Date()
-    // Auto-archive: any active event whose endTime (or date if no endTime) has passed.
+    // Auto-archive: any active event whose endTime has passed.
+    // Events without an endTime stay active until the organizer cancels them.
     const result = await this.prisma.event.updateMany({
       where: {
         status: "active",
-        OR: [
-          { endTime: { lte: now } },
-          { AND: [{ endTime: null }, { date: { lte: now } }] },
-        ],
+        endTime: { lte: now },
       },
       data: { status: "past" },
     })
