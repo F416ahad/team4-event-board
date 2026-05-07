@@ -1,29 +1,87 @@
+<%#
+  Archive list partial.
+  Each archived event is a muted card. Clicking "View attendees" toggles
+  an inline panel; the panel is HTMX-loaded on first reveal then cached
+  by Alpine so subsequent toggles don't re-fetch.
+%>
+
+<%
+  function fmtArchiveTime(value) {
+    if (!value) return "";
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+%>
+
 <% if (events.length === 0) { %>
-  <p class="text-gray-400 italic">No past events found.</p>
+  <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
+    <p class="text-sm text-slate-500 italic">No archived events found.</p>
+  </div>
 <% } else { %>
-  <ul class="space-y-4">
+  <ul class="grid gap-3 sm:gap-4">
     <% events.forEach(event => { %>
-      <li class="border rounded p-4 bg-gray-50 opacity-75">
-        <div class="flex justify-between items-start">
-          <div>
-            <h2 class="font-semibold text-gray-700"><%= event.title %></h2>
-            <p class="text-sm text-gray-500"><%= event.location %></p>
+      <li
+        class="group rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5 shadow-sm transition-colors hover:bg-slate-100/60"
+        x-data="{ shown: false }"
+      >
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <h2 class="text-base sm:text-lg font-semibold text-slate-700 truncate">
+              <%= event.title %>
+            </h2>
+            <p class="mt-1 text-xs sm:text-sm text-slate-500">
+              Ended <%= fmtArchiveTime(event.endTime ?? event.date) %>
+            </p>
           </div>
-          <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 capitalize">
-            <%= event.category %>
+          <span class="inline-flex shrink-0 items-center px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-600 capitalize">
+            <%= event.category ?? 'other' %>
           </span>
         </div>
-        <p class="text-xs text-gray-400 mt-2">
-          Ended <%= new Date(event.endTime).toLocaleString() %>
-        </p>
-        <button
-          hx-get="/events/<%= event.id %>/attendees"
-          hx-target="#attendees-<%= event.id %>"
-          hx-swap="innerHTML"
-          class="text-xs text-blue-600 hover:underline mt-2 inline-block cursor-pointer bg-transparent border-0 p-0">
-          View Attendees
-        </button>
-        <div id="attendees-<%= event.id %>" class="mt-2"></div>
+
+        <div class="mt-4 flex items-center justify-between gap-3 pt-3 border-t border-slate-200/70">
+          <%# HTMX fetches attendees on first click (hx-trigger="click once") and
+              swaps them into the panel below. Alpine handles show/hide on every click. %>
+          <button
+            type="button"
+            hx-get="/events/<%= event.id %>/attendees"
+            hx-target="#attendees-<%= event.id %>"
+            hx-swap="innerHTML"
+            hx-trigger="click once"
+            @click="shown = !shown"
+            :aria-expanded="shown.toString()"
+            :aria-controls="'attendees-<%= event.id %>'"
+            class="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800"
+          >
+            <span x-show="!shown">View attendees</span>
+            <span x-show="shown" x-cloak>Hide attendees</span>
+            <svg
+              class="w-3.5 h-3.5 transition-transform"
+              :class="shown ? 'rotate-180' : ''"
+              viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+            >
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+
+        <div
+          id="attendees-<%= event.id %>"
+          x-show="shown"
+          x-cloak
+          x-transition.opacity
+          class="mt-4"
+        >
+          <p class="px-4 py-6 text-center text-xs text-slate-400 italic">
+            Loading attendees…
+          </p>
+        </div>
       </li>
     <% }) %>
   </ul>

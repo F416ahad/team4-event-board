@@ -10,11 +10,9 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
   return {
     id: 'evt-1',
     title: 'Test Event',
-    description: 'desc',
-    location: 'Room 1',
     category: 'academic',
-    organizerId: 'organizer-1',
-    startTime: new Date(NOW.getTime() + 1 * 60 * 60 * 1000),
+    createdByUserId: 'organizer-1',
+    date: new Date(NOW.getTime() + 1 * 60 * 60 * 1000),
     endTime: new Date(NOW.getTime() + 2 * 60 * 60 * 1000),
     capacity: 50,
     status: 'active',

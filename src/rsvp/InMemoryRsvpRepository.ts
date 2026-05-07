@@ -1,69 +1,61 @@
 import { Err, Ok, type Result } from "../lib/result";
-import type { Event, RSVP, RSVPStatus} from "./rsvp.ts" // import Rsvp.ts from current directory
-import type { RSVPRepository } from "./RsvpRepository.ts";
+import type { Event, RSVP, RSVPStatus } from "./rsvp";
+import type { CreateEventFields, RSVPRepository, UpdateEventFields } from "./RsvpRepository";
 
 class InMemoryRsvpRepository implements RSVPRepository {
-    constructor(private readonly Events: Event[]) {} // Initializes the repository with an in-memory events array
+  // events store kept here so the in-memory repo doesn't need event.rsvps mutation.
+  constructor(private readonly events: Event[]) {}
 
-  async createEvent(
-    title: string,
-    createdByUserId: string,
-    capacity?: number,
-    _creator?: { email: string; displayName: string; role: "admin" | "staff" | "user" },
-  ): Promise<Result<Event, Error>> {
+  async createEvent(input: CreateEventFields): Promise<Result<Event, Error>> {
     try {
-      // creates an event with unqiue id and empty rsvp list
       const event: Event = {
         id: Date.now().toString(),
-        title,
+        title: input.title,
         rsvps: [],
-        createdByUserId,
+        createdByUserId: input.createdByUserId,
         status: "active",
-        date: new Date().toISOString(),
-        capacity,
+        date: input.date ?? new Date(),
+        endTime: input.endTime ?? null,
+        capacity: input.capacity ?? null,
+        category: input.category ?? "other",
+        createdAt: new Date(),
       };
 
-      this.Events.push(event); // Stores the new event in memory
-
-      return Ok(event); // returns created event in a result
-    } 
-    catch { 
-      return Err(new Error("Unable to create event")); // returns an error message if creation fails
+      this.events.push(event);
+      return Ok(event);
+    } catch {
+      return Err(new Error("Unable to create event"));
     }
   }
 
   async getEvent(id: string): Promise<Result<Event | null, Error>> {
     try {
-      // search in-memory array for matching event id
-      const event = this.Events.find(e => e.id === id) ?? null; // find event with given id, if can't, return null 
-      // wrap and return result in result type (event or null)
+      const event = this.events.find((e) => e.id === id) ?? null;
       return Ok(event);
-    } 
-    catch { 
-      return Err(new Error("Unable to get event")); // return error message
+    } catch {
+      return Err(new Error("Unable to get event"));
     }
   }
 
   async getEvents(): Promise<Result<Event[], Error>> {
     try {
-      return Ok(Array.from(this.Events)); // returns a shallow copy of in-memory array
+      return Ok(Array.from(this.events));
     } catch {
-      return Err(new Error("Unable to get events")); // return error message
+      return Err(new Error("Unable to get events"));
     }
   }
 
-  async updateEvent(
-    eventId: string,
-    updates: { title: string; capacity?: number; date: string; status: Event["status"] },
-  ): Promise<Result<Event | null, Error>> {
+  async updateEvent(eventId: string, updates: UpdateEventFields): Promise<Result<Event | null, Error>> {
     try {
-      const event = this.Events.find((e) => e.id === eventId) ?? null;
+      const event = this.events.find((e) => e.id === eventId) ?? null;
       if (!event) return Ok(null);
 
       event.title = updates.title;
-      event.capacity = updates.capacity;
+      event.capacity = updates.capacity ?? null;
       event.date = updates.date;
+      event.endTime = updates.endTime ?? null;
       event.status = updates.status;
+      if (updates.category) event.category = updates.category;
 
       return Ok(event);
     } catch {
@@ -71,72 +63,73 @@ class InMemoryRsvpRepository implements RSVPRepository {
     }
   }
 
-  // HIGHLIGHT
-  async addRSVP(
-    eventId: string,
-    userId: string,
-    status: RSVPStatus
-  ): Promise<Result<void, Error>> {
+  async addRSVP(eventId: string, userId: string, status: RSVPStatus): Promise<Result<void, Error>> {
     try {
-      const event = this.Events.find(e => e.id === eventId); // find event by id
-      if(!event) return Err(new Error("Event not found")); // if no event exists, return error result
+      const event = this.events.find((e) => e.id === eventId);
+      if (!event) return Err(new Error("Event not found"));
 
-      const existing = event.rsvps.find(r => r.userId === userId); // check if user already rsvp for event
+      if (!event.rsvps) event.rsvps = [];
+      const existing = event.rsvps.find((r) => r.userId === userId);
 
-      if(existing) 
-      {
-        existing.status = status; // if rsvp exists, update status
-      } 
-      else 
-      {
-        event.rsvps.push({ userId, status }); // create new rsvp entry
+      if (existing) {
+        existing.status = status;
+      } else {
+        event.rsvps.push({ userId, status });
       }
 
-      return Ok(undefined); // return success (void)
-    } 
-    catch {
-      return Err(new Error("Unable to add RSVP")); // catch any unexpected errors
+      return Ok(undefined);
+    } catch {
+      return Err(new Error("Unable to add RSVP"));
     }
   }
- 
-  async getRSVP(
-    eventId: string,
-    userId: string
-  ): Promise<Result<RSVP | null, Error>> {
+
+  async getRSVP(eventId: string, userId: string): Promise<Result<RSVP | null, Error>> {
     try {
-      const event = this.Events.find(e => e.id === eventId); // find event by id
-
-      if(!event) return Ok(null); // if event doesn't exist, return null
-
-      // find rsvp for given user within event's rsvp list and return if user rsvp'ed or null
-      const rsvp = event.rsvps.find(r => r.userId === userId) ?? null; 
-
-      return Ok(rsvp); // return rsvp or null
-    } 
-    catch {
-      return Err(new Error("Unable to get RSVP")); // unexpected errors
+      const event = this.events.find((e) => e.id === eventId);
+      if (!event) return Ok(null);
+      const rsvp = event.rsvps?.find((r) => r.userId === userId) ?? null;
+      return Ok(rsvp);
+    } catch {
+      return Err(new Error("Unable to get RSVP"));
     }
   }
 
-   async countGoing(eventId: string): Promise<Result<number, Error>> {
+  async countGoing(eventId: string): Promise<Result<number, Error>> {
     try {
-      const event = this.Events.find(e => e.id === eventId); // find event by id
-
-      if(!event) return Ok(0); // if event doesn't exist, return 0 (no rsvps)
-
-      const count = event.rsvps.filter(r => r.status === "going").length; // filter rsvps to only those going and count how many
-      
-      return Ok(count); // return count as result
-
-    } 
-    catch {
-      return Err(new Error("Unable to count RSVPs")); // unexpected errors
+      const event = this.events.find((e) => e.id === eventId);
+      if (!event) return Ok(0);
+      const count = event.rsvps?.filter((r) => r.status === "going").length ?? 0;
+      return Ok(count);
+    } catch {
+      return Err(new Error("Unable to count RSVPs"));
     }
   }
 
+  async getNextWaitlisted(eventId: string): Promise<Result<RSVP | null, Error>> {
+    try {
+      const event = this.events.find((e) => e.id === eventId);
+      if (!event) return Ok(null);
+      const next = event.rsvps?.find((r) => r.status === "waitlisted") ?? null;
+      return Ok(next);
+    } catch {
+      return Err(new Error("Unable to get next waitlisted"));
+    }
+  }
+
+  async updateRSVP(eventId: string, userId: string, status: RSVPStatus): Promise<Result<RSVP, Error>> {
+    try {
+      const event = this.events.find((e) => e.id === eventId);
+      if (!event) return Err(new Error("Event not found"));
+      const rsvp = event.rsvps?.find((r) => r.userId === userId);
+      if (!rsvp) return Err(new Error("RSVP not found"));
+      rsvp.status = status;
+      return Ok(rsvp);
+    } catch {
+      return Err(new Error("Unable to update RSVP"));
+    }
+  }
 }
 
-
-export function createInMemoryRsvpRepository(): RSVPRepository { 
-  return new InMemoryRsvpRepository([]); // initializes repository with empty list
+export function createInMemoryRsvpRepository(): RSVPRepository {
+  return new InMemoryRsvpRepository([]);
 }

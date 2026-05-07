@@ -3,41 +3,53 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Project Starter</title>
+    <title>Local Event Board</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <style>
+      [x-cloak] { display: none !important; }
+      body { background-attachment: fixed; }
+    </style>
   </head>
-  <body class="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900 p-6">
-    <div class="max-w-5xl mx-auto">
+  <body class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-sky-50 text-slate-900">
+    <%# Thin accent strip at the top for character %>
+    <div class="h-1 w-full bg-gradient-to-r from-indigo-500 via-blue-500 to-sky-400"></div>
+
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6">
       <nav class="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <a
-          href="<%= session?.authenticatedUser ? '/home' : '/login' %>"
-          class="inline-flex items-center gap-2.5 px-4 py-3 rounded-xl bg-white border border-slate-200 shadow-lg font-bold text-slate-900 no-underline"
+          href="<%= session?.authenticatedUser ? '/dashboard' : '/login' %>"
+          class="group inline-flex items-center gap-2.5 pl-3 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition-shadow font-bold text-slate-900 no-underline"
         >
-          <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-b from-blue-400 to-blue-600"></span>
-          Project Starter
+          <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-sm">
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zM3.5 8.5v6.75c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25V8.5h-13z"/>
+            </svg>
+          </span>
+          <span class="text-sm sm:text-base">Local Event Board</span>
         </a>
-        <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-3 flex-wrap text-sm">
           <% if (session?.authenticatedUser) { %>
             <% if (session.authenticatedUser.role === "admin") { %>
-              <a href="/admin/users" class="text-blue-700 font-semibold no-underline hover:underline">Manage Users</a>
+              <a href="/admin/users" class="text-indigo-700 font-semibold no-underline hover:underline">Manage Users</a>
             <% } %>
-              <a href="/archive" class="text-blue-700 font-semibold no-underline hover:underline">Past Events</a>
             <span class="text-slate-500">
               Signed in as <strong class="text-slate-700"><%= session.authenticatedUser.displayName %></strong>
-              (<%= session.authenticatedUser.role %>)
+              <span class="inline-flex items-center px-1.5 py-0.5 ml-0.5 rounded-md bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-100 capitalize">
+                <%= session.authenticatedUser.role %>
+              </span>
             </span>
             <form method="post" action="/logout" class="m-0">
               <button
                 type="submit"
-                class="px-3.5 py-2 rounded-lg bg-white text-blue-700 border border-slate-200 cursor-pointer hover:bg-blue-50 text-sm font-medium"
+                class="px-3.5 py-2 rounded-lg bg-white text-slate-700 border border-slate-200 cursor-pointer hover:bg-slate-50 hover:border-slate-300 transition-colors text-sm font-medium"
               >
                 Log out
               </button>
             </form>
           <% } else { %>
-            <a href="/login" class="text-blue-700 font-semibold no-underline hover:underline">Log in</a>
+            <a href="/login" class="text-indigo-700 font-semibold no-underline hover:underline">Log in</a>
           <% } %>
         </div>
       </nav>

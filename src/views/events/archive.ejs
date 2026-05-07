@@ -1,34 +1,58 @@
-<div class="max-w-4xl mx-auto px-4 py-8" x-data="{ activeCategory: '<%= selectedCategory ?? '' %>' }">
-  <h1 class="text-2xl font-bold mb-2">Past Events</h1>
-  <p class="text-gray-500 mb-6">Events that have already ended.</p>
+<%#
+  Archive page: events that have already ended.
+  Muted visual treatment to distinguish from the live event list.
+  Category filter via Alpine + HTMX.
+%>
+<div
+  class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8"
+  x-data="{ activeCategory: '<%= selectedCategory ?? '' %>' }"
+>
+  <header class="mb-6">
+    <div class="flex items-center gap-2 text-xs uppercase tracking-wider text-slate-400 mb-2">
+      <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+      Archive
+    </div>
+    <h1 class="text-2xl sm:text-3xl font-bold text-slate-700">Archived events</h1>
+    <p class="mt-1 text-sm text-slate-500">
+      Events that have already ended. Filter by category, or expand any event to see who attended.
+    </p>
+  </header>
 
-  <!-- Category filter — Alpine tracks active, HTMX updates the list -->
-  <div class="mb-6 flex gap-2 flex-wrap">
+  <%# Category filter — Alpine tracks active, HTMX updates the list %>
+  <div class="mb-6 flex gap-2 flex-wrap" role="tablist" aria-label="Filter by category">
     <button
+      type="button"
       hx-get="/archive"
       hx-target="#archive-list"
       hx-swap="innerHTML"
-      hx-trigger="click"
+      hx-push-url="true"
       @click="activeCategory = ''"
-      :class="activeCategory === '' ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'"
-      class="px-3 py-1 rounded border text-sm">
+      :class="activeCategory === ''
+        ? 'bg-slate-700 text-white border-slate-700 shadow-sm'
+        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
+      class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+    >
       All
     </button>
     <% categories.forEach(cat => { %>
       <button
+        type="button"
         hx-get="/archive?category=<%= cat %>"
         hx-target="#archive-list"
         hx-swap="innerHTML"
-        hx-trigger="click"
+        hx-push-url="true"
         @click="activeCategory = '<%= cat %>'"
-        :class="activeCategory === '<%= cat %>' ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'"
-        class="px-3 py-1 rounded border text-sm capitalize">
+        :class="activeCategory === '<%= cat %>'
+          ? 'bg-slate-700 text-white border-slate-700 shadow-sm'
+          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
+        class="px-3 py-1.5 rounded-lg border text-sm font-medium capitalize transition-colors"
+      >
         <%= cat %>
       </button>
     <% }) %>
   </div>
 
-  <!-- Event list — swapped by HTMX on filter -->
+  <%# Event list — swapped by HTMX on filter %>
   <div id="archive-list">
     <%- include('partials/archive-list', { events, selectedCategory, categories }) %>
   </div>
