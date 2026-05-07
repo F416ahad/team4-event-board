@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { Ok, Err, type Result } from "../lib/result";
-import type { RSVPRepository } from "./RsvpRepository";
-import type { Event, RSVP, RSVPStatus } from "./rsvp";
+import type { CreateEventFields, RSVPRepository, UpdateEventFields } from "./RsvpRepository";
+import type { Event, EventCategory, EventStatus, RSVP, RSVPStatus } from "./rsvp";
+import { coerceCategory } from "./rsvp";
 
 
 export function createPrismaRsvpRepository(prisma: PrismaClient): RSVPRepository {
@@ -14,16 +15,23 @@ function toEvent(row: {
   capacity: number | null;
   status: string;
   date: Date;
+  endTime: Date | null;
+  category: string;
   createdByUserId: string;
+  createdAt: Date;
+  updatedAt?: Date;
 }): Event {
   return {
     id: row.id,
     title: row.title,
-    rsvps: [],
-    capacity: row.capacity ?? undefined,
-    status: row.status as Event["status"],
-    date: row.date.toISOString(),
+    capacity: row.capacity ?? null,
+    status: (row.status as EventStatus) ?? "active",
+    date: row.date,
+    endTime: row.endTime ?? null,
+    category: coerceCategory(row.category) as EventCategory,
     createdByUserId: row.createdByUserId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -44,15 +52,16 @@ function toRsvp(row: {
 class PrismaRsvpRepository implements RSVPRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async createEvent(
-    title: string,
-    createdByUserId: string,
-    capacity?: number,
-    creator?: { email: string; displayName: string; role: "admin" | "staff" | "user" },
-  ): Promise<Result<Event, Error>> {
+  async createEvent(input: CreateEventFields): Promise<Result<Event, Error>> {
     try {
-      const defaultDate = new Date();
-      defaultDate.setDate(defaultDate.getDate() + 30);
+      const { title, createdByUserId, capacity, category, date, endTime, creator } = input;
+
+      // Default to 30 days out if no date supplied (preserves prior behaviour).
+      const startDate = date ?? (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        return d;
+      })();
 
       if (creator) {
         await this.prisma.user.upsert({
@@ -73,7 +82,15 @@ class PrismaRsvpRepository implements RSVPRepository {
       }
 
       const row = await this.prisma.event.create({
-        data: { title, createdByUserId, date: defaultDate, status: "active", capacity: capacity ?? null },
+        data: {
+          title,
+          createdByUserId,
+          date: startDate,
+          endTime: endTime ?? null,
+          status: "active",
+          capacity: capacity ?? null,
+          category: category ?? "other",
+        },
       });
       return Ok(toEvent(row));
     } catch (e) {
@@ -99,18 +116,17 @@ class PrismaRsvpRepository implements RSVPRepository {
     }
   }
 
-  async updateEvent(
-    eventId: string,
-    updates: { title: string; capacity?: number; date: string; status: Event["status"] },
-  ): Promise<Result<Event | null, Error>> {
+  async updateEvent(eventId: string, updates: UpdateEventFields): Promise<Result<Event | null, Error>> {
     try {
       const row = await this.prisma.event.update({
         where: { id: eventId },
         data: {
           title: updates.title,
           capacity: updates.capacity ?? null,
-          date: new Date(updates.date),
+          date: updates.date,
+          endTime: updates.endTime ?? null,
           status: updates.status,
+          ...(updates.category ? { category: updates.category } : {}),
         },
       });
       return Ok(toEvent(row));
@@ -178,7 +194,7 @@ class PrismaRsvpRepository implements RSVPRepository {
     }
   }
   async getNextWaitlisted(eventId: string): Promise<Result<RSVP | null, Error>> {
-    try { 
+    try {
       const row = await this.prisma.rsvp.findFirst({
         where: { eventId, status: "waitlisted" },
         orderBy: { createdAt: "asc" }, // earliest waitlisted

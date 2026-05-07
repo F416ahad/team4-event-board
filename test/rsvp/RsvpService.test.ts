@@ -18,7 +18,11 @@ describe("RsvpService - Sprint 2", () => {
     repo = createInMemoryRsvpRepository();
     service = new RsvpService(repo);
 
-    const createResult = await repo.createEvent("Test Event", "organizer1");
+    const createResult = await repo.createEvent({
+      title: "Test Event",
+      createdByUserId: "organizer1",
+      category: "other",
+    });
     expect(createResult.ok).toBe(true);
 
     // after checking .ok, assert the value is Event (not Error)

@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import type { UserRole } from "../auth/User";
+import type { EventCategory } from "../events/Event";
+import { coerceCategory } from "../events/Event";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -8,9 +10,10 @@ export type EventStatus = "active" | "cancelled" | "past";
 export interface DashboardEventDTO {
   id: string;
   title: string;
-  date: Date | null;
+  // Field name matches the canonical Event type so views can be shared.
+  date: Date;
   endTime: Date | null;
-  category: string | null;
+  category: EventCategory;
 
   status: EventStatus;
 
@@ -18,7 +21,8 @@ export interface DashboardEventDTO {
   attendeeCount: number;
   attendingRatio: string;
 
-  organizerId: string;
+  // Field name matches the canonical Event type.
+  createdByUserId: string;
   organizerName: string | null;
 }
 
@@ -37,13 +41,13 @@ export class DashboardService {
    * Load all dashboard events for the given user.
    * - admin → every event
    * - staff → only events they created
-   * - user  → forbidden
+   * - user  → only events they created (so users can see what they're on)
+   *
+   * Note: the route already gates `/dashboard` to authenticated users, and
+   * the dashboard view shows publish/cancel actions only for the organizer
+   * or admin.
    */
   async getDashboard(userId: string, role: UserRole): Promise<DashboardEventDTO[]> {
-    if (role === "user") {
-      throw new Error("Forbidden");
-    }
-
     const events = await this.prisma.event.findMany({
       select: {
         id: true,
@@ -52,6 +56,7 @@ export class DashboardService {
         endTime: true,
         status: true,
         capacity: true,
+        category: true,
         createdByUserId: true,
         rsvps: { select: { status: true } },
         createdBy: { select: { displayName: true } },
@@ -91,6 +96,7 @@ export class DashboardService {
         endTime: true,
         status: true,
         capacity: true,
+        category: true,
         createdByUserId: true,
         rsvps: { select: { status: true } },
         createdBy: { select: { displayName: true } },
@@ -152,6 +158,7 @@ export class DashboardService {
     endTime?: Date | null;
     status: string;
     capacity: number | null;
+    category?: string | null;
     createdByUserId: string;
     createdBy?: { displayName: string } | null;
     rsvps: { status: string }[];
@@ -161,14 +168,14 @@ export class DashboardService {
     return {
       id: event.id,
       title: event.title,
-      date: event.date ?? null,
+      date: event.date ?? new Date(0),
       endTime: event.endTime ?? null,
-      category: null,
+      category: coerceCategory(event.category),
       status: event.status as EventStatus,
       capacity: event.capacity ?? null,
       attendeeCount,
       attendingRatio: `${attendeeCount} / ${event.capacity ?? "unlimited"}`,
-      organizerId: event.createdByUserId,
+      createdByUserId: event.createdByUserId,
       organizerName: event.createdBy?.displayName ?? null,
     };
   }

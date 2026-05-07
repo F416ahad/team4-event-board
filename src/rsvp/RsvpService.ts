@@ -1,6 +1,6 @@
 import { Ok, Err, type Result } from "../lib/result";
-import type { RSVPRepository } from "./RsvpRepository";
-import type { RSVPStatus, Event, RSVP } from "./rsvp.ts";
+import type { CreateEventFields, RSVPRepository, UpdateEventFields } from "./RsvpRepository";
+import type { RSVPStatus, Event, RSVP, EventCategory } from "./rsvp";
 import type { UserRole } from "../auth/User";
 
 import {
@@ -18,7 +18,7 @@ export class RsvpService {
 
   /**
    * FEATURE 9 — Waitlist Promotion
-   * toggleRSVP now returns:
+   * toggleRSVP returns:
    * { cancelled: RSVP | null, promoted: RSVP | null }
    */
   async toggleRSVP(
@@ -33,12 +33,26 @@ export class RsvpService {
       const event = eventResult.value;
       if (!event) return Err(new EventNotFoundError());
       if (event.status === "cancelled") return Err(new EventCancelledError());
+      if (event.status === "past") return Err(new EventPastError());
 
-      // Past event check
-      const eventDate = new Date(event.date);
-      const today = new Date();
-      if (eventDate.toISOString().slice(0, 10) < today.toISOString().slice(0, 10)) {
+      // Auto-archive transition runs every 60s; until then, fall back to
+      // explicit time checks so toggleRSVP can't accept ended events.
+      const eventEnd = event.endTime
+        ? event.endTime instanceof Date
+          ? event.endTime
+          : new Date(event.endTime)
+        : null;
+      if (eventEnd && eventEnd.getTime() < Date.now()) {
         return Err(new EventPastError());
+      }
+
+      // If no endTime is set, fall back to a same-day comparison
+      // (matches the original behaviour: same-day events are still RSVP-able).
+      if (!eventEnd) {
+        const eventDate = event.date instanceof Date ? event.date : new Date(event.date);
+        const eventDay = eventDate.toISOString().slice(0, 10);
+        const today = new Date().toISOString().slice(0, 10);
+        if (eventDay < today) return Err(new EventPastError());
       }
 
       // 2. Load existing RSVP
@@ -122,21 +136,66 @@ export class RsvpService {
     return await this.repo.getRSVP(eventId, userId);
   }
 
-  // create event
+  /**
+   * Create a new event. The form supplies title + category + start date (and optionally
+   * end time and capacity). The creator user is upserted by the repo so RSVPs can FK
+   * back to a real user row.
+   */
   async createEvent(
-    title: string,
-    createdByUserId: string,
-    capacity?: number,
-    creator?: { email: string; displayName: string; role: UserRole },
+    input: {
+      title: string;
+      createdByUserId: string;
+      capacity?: number | null;
+      category?: EventCategory;
+      date?: Date;
+      endTime?: Date | null;
+      creator?: { email: string; displayName: string; role: UserRole };
+    },
   ): Promise<Result<Event, Error>> {
-    return await this.repo.createEvent(title, createdByUserId, capacity, creator);
+    const title = input.title.trim();
+    if (!title) return Err(new EventInvalidInputError("Event title is required"));
+
+    if (input.capacity != null && input.capacity < 1) {
+      return Err(new EventInvalidInputError("Capacity must be at least 1"));
+    }
+
+    if (input.date && Number.isNaN(input.date.getTime())) {
+      return Err(new EventInvalidInputError("Event start time is invalid"));
+    }
+
+    if (input.endTime && Number.isNaN(input.endTime.getTime())) {
+      return Err(new EventInvalidInputError("Event end time is invalid"));
+    }
+
+    if (input.date && input.endTime && input.endTime.getTime() <= input.date.getTime()) {
+      return Err(new EventInvalidInputError("End time must be after the start time"));
+    }
+
+    const fields: CreateEventFields = {
+      title,
+      createdByUserId: input.createdByUserId,
+      capacity: input.capacity ?? null,
+      category: input.category ?? "other",
+      date: input.date,
+      endTime: input.endTime ?? null,
+      creator: input.creator,
+    };
+
+    return await this.repo.createEvent(fields);
   }
 
   async editEvent(
     eventId: string,
     actorUserId: string,
     actorRole: UserRole,
-    updates: { title: string; capacity?: number; date: string; status: Event["status"] },
+    updates: {
+      title: string;
+      capacity?: number | null;
+      date: Date;
+      endTime?: Date | null;
+      category?: EventCategory;
+      status: Event["status"];
+    },
   ): Promise<Result<Event, Error>> {
     const eventResult = await this.repo.getEvent(eventId);
     if (!eventResult.ok) return Err(eventResult.value as Error);
@@ -148,26 +207,33 @@ export class RsvpService {
     const isOwner = event.createdByUserId === actorUserId;
     if (!isAdmin && !isOwner) return Err(new EventEditNotAuthorizedError());
 
-    const eventDate = new Date(event.date);
-    if (event.status === "cancelled" || eventDate.toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
-      return Err(new EventInvalidStateError());
-    }
+    if (event.status === "past") return Err(new EventInvalidStateError());
 
     const title = updates.title.trim();
     if (!title) return Err(new EventInvalidInputError("Event title is required"));
-    if (updates.capacity !== undefined && updates.capacity < 1) {
+    if (updates.capacity != null && updates.capacity < 1) {
       return Err(new EventInvalidInputError("Capacity must be at least 1"));
     }
-    if (Number.isNaN(new Date(updates.date).getTime())) {
+    if (Number.isNaN(updates.date.getTime())) {
       return Err(new EventInvalidInputError("Event date is invalid"));
     }
+    if (updates.endTime && Number.isNaN(updates.endTime.getTime())) {
+      return Err(new EventInvalidInputError("Event end time is invalid"));
+    }
+    if (updates.endTime && updates.endTime.getTime() <= updates.date.getTime()) {
+      return Err(new EventInvalidInputError("End time must be after the start time"));
+    }
 
-    const updateResult = await this.repo.updateEvent(eventId, {
+    const fields: UpdateEventFields = {
       title,
-      capacity: updates.capacity,
+      capacity: updates.capacity ?? null,
       date: updates.date,
+      endTime: updates.endTime ?? null,
+      category: updates.category,
       status: updates.status,
-    });
+    };
+
+    const updateResult = await this.repo.updateEvent(eventId, fields);
     if (!updateResult.ok) return Err(updateResult.value as Error);
     if (!updateResult.value) return Err(new EventNotFoundError());
     return Ok(updateResult.value);
