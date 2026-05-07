@@ -1,7 +1,7 @@
 // src/savedEvents/SavedEventController.ts
 import { Request, Response } from 'express';
 import { SavedEventService } from './SavedEventService';
-import { getAllEvents } from '../repositories/InMemoryEventRepository';
+import prisma from '../lib/prismaClient';
 import { getAuthenticatedUser, type AppSessionStore } from '../session/AppSession';
 
 export const SavedEventController = {
@@ -60,29 +60,35 @@ export const SavedEventController = {
    * GET: Displays the user's saved list dashboard.
    */
   showSavedList: async (req: Request, res: Response) => {
-    // 1. Parse request: Fixed session store access
     const store = req.session as AppSessionStore;
     const user = getAuthenticatedUser(store);
-    
+
     if (!user) {
       return res.redirect('/login');
     }
 
-    // 2. Call Service to get the list of saved IDs
     const result = await SavedEventService.getSavedEventsForUser(user.userId);
-    
+
     if (!result.ok) {
-      // Fixed: Cast to Error for TypeScript
       return res.status(500).send((result.value as Error).message);
     }
 
     const savedIds = result.value;
 
-    // 3. Fetch the full event details
-    const allEvents = getAllEvents();
-    const savedEvents = allEvents.filter(event => savedIds.includes(event.id));
+    // Look up the real events from Prisma (the legacy in-memory store only had
+    // one hardcoded test row, so saved real events never showed up).
+    const savedEvents =
+      savedIds.length > 0
+        ? await prisma.event.findMany({
+            where: { id: { in: savedIds } },
+            orderBy: { date: 'asc' },
+          })
+        : [];
 
-    // 4. Map Result to Response
-    return res.render('savedEvents/list', { events: savedEvents });
+    // Pass session so layouts/base.ejs can render the nav.
+    return res.render('savedEvents/list', {
+      events: savedEvents,
+      session: store.app ?? null,
+    });
   }
 };

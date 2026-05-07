@@ -19,7 +19,7 @@
     <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6">
       <nav class="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <a
-          href="<%= session?.authenticatedUser ? '/dashboard' : '/login' %>"
+          href="<%= (typeof session !== 'undefined' && session?.authenticatedUser) ? '/dashboard' : '/login' %>"
           class="group inline-flex items-center gap-2.5 pl-3 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow transition-shadow font-bold text-slate-900 no-underline"
         >
           <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-sm">
@@ -30,7 +30,7 @@
           <span class="text-sm sm:text-base">Local Event Board</span>
         </a>
         <div class="flex items-center gap-3 flex-wrap text-sm">
-          <% if (session?.authenticatedUser) { %>
+          <% if ((typeof session !== 'undefined' && session?.authenticatedUser)) { %>
             <% if (session.authenticatedUser.role === "admin") { %>
               <a href="/admin/users" class="text-indigo-700 font-semibold no-underline hover:underline">Manage Users</a>
             <% } %>
