@@ -1,56 +1,117 @@
-<!-- Main Container: Responsive padding (1rem on mobile, 2rem on tablet/desktop) -->
+<%- include('../partials/header') %>
+
 <main class="container mx-auto py-8 px-4 md:px-8 max-w-4xl">
-  
-  <!-- Header Section -->
-  <div class="mb-6">
-    <!-- Event Title: large and bold -->
-    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-      <%= event.title %>
-    </h1>
-
-    <!-- Category Badge: small, rounded, and colorful -->
-    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-      <%= event.category %>
-    </span>
-  </div>
-
-  <!-- Event Details Card: Bordered, rounded, and slightly shadowed -->
-  <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-    <div class="p-6 space-y-4">
-      
-      <!-- Location Row -->
-      <div class="flex items-start">
-        <span class="font-semibold w-32 text-gray-700">Location:</span>
-        <span class="text-gray-600"><%= event.location %></span>
-      </div>
-
-      <!-- Date/Time Row -->
-      <div class="flex items-start">
-        <span class="font-semibold w-32 text-gray-700">Date:</span>
-        <div class="text-gray-600">
-          <p><%= event.startDatetime.toLocaleDateString() %></p>
-          <!-- This is where your Alpine.js relative time will go later! -->
-        </div>
-      </div>
-
-      <!-- Capacity Row -->
-      <div class="flex items-start">
-        <span class="font-semibold w-32 text-gray-700">Capacity:</span>
-        <span class="text-gray-600">
-          <%= event.rsvpCount || 0 %> / <%= event.capacity || 'Unlimited' %> attendees
+    
+    <!-- Header Section -->
+    <header class="mb-8">
+        <h1 class="text-3xl md:text-5xl font-bold text-gray-900 mb-3 tracking-tight">
+            <%= event.title %>
+        </h1>
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800 shadow-sm">
+            <%= event.category %>
         </span>
-      </div>
+    </header>
 
-    </div>
+    <!-- Event Detail Card -->
+    <article class="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+        
+        <section class="p-6 md:p-8 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Location -->
+                <div class="flex items-start gap-3">
+                    <div class="mt-1 text-blue-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold uppercase tracking-wider text-gray-500">Location</p>
+                        <p class="text-lg text-gray-800 font-medium"><%= event.location %></p>
+                    </div>
+                </div>
 
-    <!-- Description section: Light gray background to separate from the metadata -->
-    <div class="bg-gray-50 p-6 border-t border-gray-200">
-      <h2 class="text-lg font-semibold text-gray-900 mb-2">About this event</h2>
-      <p class="text-gray-600 leading-relaxed">
-        <%= event.description %>
-      </p>
-    </div>
-  </div>
+                <!-- Date & Time (ENHANCED WITH ALPINE.JS) -->
+                <div class="flex items-start gap-3" 
+                     x-data="{ 
+                        eventDate: '<%= event.startDatetime.toISOString() %>',
+                        get relativeTime() {
+                            const diff = Math.ceil((new Date(this.eventDate) - new Date()) / (1000 * 60 * 60 * 24));
+                            if (diff === 0) return 'today';
+                            if (diff === 1) return 'tomorrow';
+                            if (diff > 1) return `in ${diff} days`;
+                            if (diff === -1) return 'yesterday';
+                            return diff < -1 ? `${Math.abs(diff)} days ago` : 'past event';
+                        }
+                     }">
+                    <div class="mt-1 text-blue-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold uppercase tracking-wider text-gray-500">Date & Time</p>
+                        <p class="text-lg text-gray-800 font-medium">
+                            <%= new Date(event.startDatetime).toLocaleString([], { dateStyle: 'long', timeStyle: 'short' }) %>
+                        </p>
+                        <!-- Alpine.js dynamic label -->
+                        <p class="text-sm text-blue-600 font-semibold italic bg-blue-50 px-2 py-0.5 rounded inline-block mt-1">
+                            Starts <span x-text="relativeTime"></span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Capacity -->
+                <div class="flex items-start gap-3">
+                    <div class="mt-1 text-blue-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold uppercase tracking-wider text-gray-500">Capacity</p>
+                        <p class="text-lg text-gray-800 font-medium">
+                            <%= event.capacity ? event.capacity : "Unlimited" %>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Description Section -->
+        <section class="p-6 md:p-8 bg-gray-50 border-t border-gray-200">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">About this Event</h3>
+            <div class="prose text-gray-600 leading-relaxed max-w-none">
+                <%= event.description %>
+            </div>
+        </section>
+
+        <!-- Footer Section -->
+        <footer class="p-6 md:p-8 bg-white border-t border-gray-200">
+            <div class="user-actions">
+                <% if (session?.user && (session.user.id === event.organizerId || session.user.role === 'admin')) { %>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                        <p class="text-blue-800 font-bold flex items-center gap-2 mb-4">Organizer View</p>
+                        <div class="flex flex-wrap gap-3">
+                            <a href="/events/<%= event.id %>/edit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Edit Event</a>
+                            <button class="bg-white hover:bg-red-50 text-red-600 border border-red-200 font-bold py-2 px-6 rounded-lg transition-colors">Cancel Event</button>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <div id="rsvp-section" class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <p class="text-gray-700 font-medium">Attendees: <span class="text-2xl font-bold text-blue-600 ml-2"><%= event.attendeeCount || 0 %></span></p>
+                        <% if (session?.user) { %>
+                            <button hx-post="/events/<%= event.id %>/rsvp" hx-target="#rsvp-section" hx-swap="outerHTML" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-all">RSVP Now</button>
+                        <% } else { %>
+                            <p class="text-sm text-gray-500">Please <a href="/login" class="text-blue-600 underline">login</a> to RSVP.</p>
+                        <% } %>
+                    </div>
+                <% } %>
+            </div>
+        </footer>
+    </article>
+</main>
 
   <!-- Action buttons -->
   <div class="mt-8 flex flex-wrap gap-4">
