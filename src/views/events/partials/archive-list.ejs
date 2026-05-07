@@ -1,5 +1,5 @@
 <% if (events.length === 0) { %>
-  <p class="text-gray-400 italic">No past events found.</p>
+  <p class="text-gray-400 italic">No archived events found.</p>
 <% } else { %>
   <ul class="space-y-4">
     <% events.forEach(event => { %>
@@ -7,14 +7,14 @@
         <div class="flex justify-between items-start">
           <div>
             <h2 class="font-semibold text-gray-700"><%= event.title %></h2>
-            <p class="text-sm text-gray-500"><%= event.location %></p>
+            <p class="text-sm text-gray-500 capitalize"><%= event.category ?? 'other' %></p>
           </div>
           <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 capitalize">
-            <%= event.category %>
+            <%= event.category ?? 'other' %>
           </span>
         </div>
         <p class="text-xs text-gray-400 mt-2">
-          Ended <%= new Date(event.endTime).toLocaleString() %>
+          Ended <%= new Date(event.endTime ?? event.date).toLocaleString() %>
         </p>
         <button
           hx-get="/events/<%= event.id %>/attendees"

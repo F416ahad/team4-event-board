@@ -22,12 +22,25 @@
     <div class="p-6 border border-slate-200 rounded-2xl bg-white shadow-md">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <p class="text-sm text-slate-500">Date</p>
+          <p class="text-sm text-slate-500">Starts</p>
           <p class="font-medium"><%= new Date(event.date).toLocaleString() %></p>
         </div>
         <div>
+          <p class="text-sm text-slate-500">Ends</p>
+          <p class="font-medium">
+            <%= event.endTime ? new Date(event.endTime).toLocaleString() : '—' %>
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-slate-500">Category</p>
+          <p class="font-medium capitalize"><%= event.category ?? 'other' %></p>
+        </div>
+        <div>
           <p class="text-sm text-slate-500">Status</p>
-          <p class="font-medium capitalize <%= event.status === 'cancelled' ? 'text-red-600' : 'text-green-600' %>">
+          <p class="font-medium capitalize
+            <%= event.status === 'cancelled' ? 'text-red-600'
+                : event.status === 'past' ? 'text-slate-500'
+                : 'text-green-600' %>">
             <%= event.status %>
           </p>
         </div>
