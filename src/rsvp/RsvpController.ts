@@ -6,6 +6,7 @@ import type { UserRole } from "../auth/User";
 import type { EventCategory } from "./rsvp";
 import { EVENT_CATEGORIES } from "./rsvp";
 import { Result } from "../lib/result";
+import { SavedEventService } from "../savedEvents/SavedEventService";
 
 import {
   EventNotFoundError,
@@ -204,6 +205,8 @@ class RsvpController implements IRsvpController {
         session,
         event: null,
         userRsvp: null,
+        attendeeCount: 0,
+        isSaved: false,
         error: errorMsg,
       });
       return;
@@ -212,16 +215,27 @@ class RsvpController implements IRsvpController {
     const event = result.value;
     const rsvpResult = await this.service.getUserRsvp(eventId, currentUserId);
     const userRsvp = rsvpResult.ok ? rsvpResult.value : null;
-
+    
+    // --- RESTORED ATTENDEE COUNT LOGIC ---
     const countResult = await this.service.countGoing(eventId);
     const attendeeCount = countResult.ok ? countResult.value : 0;
+
+    // --- FEATURE 14: SAVE FOR LATER LOGIC ADDED HERE ---
+    let isSaved = false;
+    if (currentUserId) {
+      const savedEventsResult = await SavedEventService.getSavedEventsForUser(currentUserId);
+      if (savedEventsResult.ok) {
+        isSaved = savedEventsResult.value.includes(eventId);
+      }
+    }
+    // ---------------------------------------------------
 
     res.render("events/show", {
       session,
       event,
       userRsvp,
       attendeeCount,
-      categories: EVENT_CATEGORIES,
+      isSaved, // <-- PASSED TO TEMPLATE HERE
       error: null,
     });
   }
