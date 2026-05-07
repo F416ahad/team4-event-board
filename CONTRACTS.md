@@ -523,13 +523,16 @@ Always check result.ok before accessing result.value.
 UserRole
 ts
 type UserRole = "admin" | "staff" | "user"
+```
 
-## Feature 8: EventService
- 
+
+
+## Feature 8  — Organizer Event Dashboard
+
 ### `getEventsForOrganizer`
  
-Retrieves all events created by a specific organizer, grouped by status, with attendee counts.
- 
+Organizers can visit a personal dashboard showing all the events they have created, grouped by status: published, draft, and cancelled or past. Each entry shows the event title, date, category, and how many people are attending relative to capacity.
+
 ```ts
 getEventsForOrganizer(organizerId: string): Promise<GroupedEventDashboard>
 ```
@@ -658,7 +661,7 @@ Returns the updated `EventSummary` with `status: "cancelled"`.
  
 ---
  
-## Feature 9: RsvpService
+## Feature 9 - Waitlist Promotion
  
 ### `cancelRsvp`
  
